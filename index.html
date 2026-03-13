@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSkript IDE</title>
+    <link rel="stylesheet" href="./src/styles/layout.css">
+
+</head>
+<body>
+
+<h1>WebSkript IDE</h1>
+
+<div class="mainLayout">
+
+    <nav class="menuBar sectionCard">
+        <div class="menuGroup">
+            <button id="fileMenuButton" class="menuButton">Datei ▾</button>
+            <div id="fileMenuDropdown" class="menuDropdown hidden">
+                <button id="newProject" class="menuItem">Neu</button>
+                <button id="saveProject" class="menuItem">Projekt speichern</button>
+                <button id="loadProject" class="menuItem">Projekt öffnen</button>
+            </div>
+        </div>
+
+        <div class="menuGroup">
+            <button id="helpMenuButton" class="menuButton">Hilfe ▾</button>
+            <div id="helpMenuDropdown" class="menuDropdown hidden">
+                <button id="openHelp" class="menuItem">Hilfe anzeigen</button>
+            </div>
+        </div>
+
+        <div class="menuGroup">
+            <button id="languageMenuButton" class="menuButton">Programmiersprache ▾</button>
+            <div id="languageMenuDropdown" class="menuDropdown hidden">
+                <button id="openPythonView" class="menuItem">Python anzeigen</button>
+                <button id="openPascalView" class="menuItem">Pascal anzeigen</button>
+                <button id="openJavaView" class="menuItem">Java anzeigen</button>
+            </div>
+        </div>
+
+        <input id="loadProjectInput" type="file" accept=".wskript,application/json" hidden>
+    </nav>
+
+    <div class="workspace">
+
+        <aside class="programSidebar sectionCard">
+            <div class="sidebarHeader">
+                <h3>Programme</h3>
+            </div>
+
+            <div id="programList"></div>
+
+            <div class="sidebarButtonGroup">
+                <button id="addProgram" class="ui-button ui-button-neutral">+ Unterprogramm</button>
+                <button id="renameProgram" class="ui-button ui-button-neutral">Umbenennen</button>
+                <button id="deleteProgram" class="ui-button ui-button-danger">Löschen</button>
+            </div>
+        </aside>
+
+        <div class="contentArea">
+            <div class="topArea">
+                <section class="editorArea sectionCard">
+                    <div class="actionToolbar actionToolbar-primary">
+                        <button id="runProgram" class="ui-button ui-button-run">Run</button>
+                        <button id="debugProgram" class="ui-button ui-button-debug">Debug</button>
+                        <button id="stepProgram" class="ui-button ui-button-step">Schritt</button>
+                    </div>
+
+                    <div class="editorTopHeader">
+                        <div>
+                            <h3 id="editorTitle">Hauptprogramm</h3>
+                            <div id="subprogramMeta" class="subprogramMeta hidden">
+                                <div id="parameterInfo" class="metaLine"></div>
+                                <div id="returnInfo" class="metaLine"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="editor-shell">
+                        <div class="line-numbers" id="lineNumbers">
+                            <div id="lineNumbersInner"></div>
+                        </div>
+
+                        <div class="editor-stack">
+                            <pre id="editorHighlight" class="editor-highlight" aria-hidden="true"></pre>
+                            <textarea id="editor" spellcheck="false" wrap="off"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <aside class="sidePanelArea sectionCard">
+                    <div class="actionToolbar actionToolbar-secondary">
+                        <button id="showDiagram" class="ui-button ui-button-panel">Struktogramm anzeigen</button>
+                        <button id="exportDiagramPng" class="ui-button ui-button-panel">Struktogramm als PNG</button>
+                    </div>
+
+                    <section class="consoleArea sectionCard consoleAreaInline">
+                        <div class="consoleHeader">
+                            <h3>Konsole</h3>
+                            <button id="clearConsole" class="ui-button ui-button-neutral">Konsole leeren</button>
+                        </div>
+                        <div id="consoleOutput"></div>
+                    </section>
+
+                    <div id="variablesPanel" class="panelCard">
+                        <h3>Variablenzustand</h3>
+                        <div id="variablesContent"></div>
+                    </div>
+                </aside>
+            </div>
+
+
+        </div>
+
+    </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
