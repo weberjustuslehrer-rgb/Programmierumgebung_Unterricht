@@ -966,7 +966,7 @@ export class Interpreter {
         return parsed.value;
     }
 
-    callSubprogram(callInfo, expectReturnValue) {
+    callSubprogram(callInfo, expectReturnValue, pendingAction = null) {
         if (!this.programs || !Array.isArray(this.programs.subprograms)) {
             throw new Error("Es sind keine Unterprogramme verfügbar.");
         }
@@ -1024,7 +1024,8 @@ export class Interpreter {
             caller: {
                 programId: callerFrame.programId,
                 expectReturnValue,
-                node: this.currentControlFrame()?.currentNode || null
+                node: this.currentControlFrame()?.currentNode || null,
+                pendingAction
             }
         });
 
@@ -1047,7 +1048,38 @@ export class Interpreter {
             )
         };
     }
+    applyPendingReturnValue(callerFrame, callerInfo, returnValue) {
+        const action = callerInfo?.pendingAction;
+        if (!action) {
+            return;
+        }
 
+        if (action.kind === "declaration") {
+            if (!this.isValueCompatible(action.varType, returnValue)) {
+                throw new Error(`Typfehler: Der Wert "${this.formatValue(returnValue)}" passt nicht zum Typ ${action.varType}.`);
+            }
+
+            callerFrame.variables[action.variable] = returnValue;
+            callerFrame.variableTypes[action.variable] = action.varType;
+            this.updateMainContextFromCurrentFrame();
+            return;
+        }
+
+        if (action.kind === "assignment") {
+            if (callerFrame.variableTypes[action.variable] === undefined) {
+                throw new Error(`Fehler: Die Variable ${action.variable} wurde noch nicht angelegt.`);
+            }
+
+            const expectedType = callerFrame.variableTypes[action.variable];
+
+            if (!this.isValueCompatible(expectedType, returnValue)) {
+                throw new Error(`Typfehler: Der Wert "${this.formatValue(returnValue)}" passt nicht zum Typ ${expectedType}.`);
+            }
+
+            callerFrame.variables[action.variable] = returnValue;
+            this.updateMainContextFromCurrentFrame();
+        }
+    }
     executeReturningCallExpression(callInfo) {
         if (!this.programs || !Array.isArray(this.programs.subprograms)) {
             throw new Error("Es sind keine Unterprogramme verfügbar.");
@@ -1159,9 +1191,65 @@ export class Interpreter {
             const programFrame = this.currentProgramFrame();
             const controlFrame = this.currentControlFrame();
 
-            if (!programFrame || !controlFrame) {
+            if (!programFrame) {
                 this.execution.isFinished = true;
                 return null;
+            }
+
+            if (!controlFrame) {
+                const finishedFrame = this.finishCurrentProgramFrame();
+
+                if (finishedFrame && finishedFrame.caller) {
+                    const callerFrame = this.currentProgramFrame();
+                    if (!callerFrame) {
+                        return null;
+                    }
+
+                    if (finishedFrame.caller.expectReturnValue) {
+                        if (!finishedFrame.returnType) {
+                            throw new Error(`Das Unterprogramm ${finishedFrame.programName} hat keinen Rückgabewert.`);
+                        }
+
+                        if (!finishedFrame.returnState.returned) {
+                            throw new Error(`Das Unterprogramm ${finishedFrame.programName} hat keinen Wert zurückgegeben.`);
+                        }
+
+                        this.applyPendingReturnValue(
+                            callerFrame,
+                            finishedFrame.caller,
+                            finishedFrame.returnState.value
+                        );
+
+                        const action = finishedFrame.caller.pendingAction;
+                        let message = `Das Unterprogramm ${finishedFrame.programName} ist beendet.`;
+
+                        if (action?.kind === "declaration") {
+                            message += ` Der Variable ${action.variable} vom Typ ${action.varType} wird der Wert ${this.formatValue(finishedFrame.returnState.value)} zugewiesen.`;
+                        } else if (action?.kind === "assignment") {
+                            message += ` Der Variable ${action.variable} wird der Wert ${this.formatValue(finishedFrame.returnState.value)} zugewiesen.`;
+                        }
+
+                        return this.createTraceEntry(
+                            "debug",
+                            finishedFrame.caller.node,
+                            message,
+                            callerFrame.programId
+                        );
+                    }
+
+                    return this.createTraceEntry(
+                        "debug",
+                        finishedFrame.caller.node,
+                        `Das Unterprogramm ${finishedFrame.programName} ist beendet.`,
+                        callerFrame.programId
+                    );
+                }
+
+                if (this.execution.isFinished) {
+                    return null;
+                }
+
+                continue;
             }
 
             if (controlFrame.kind === "block") {
@@ -1185,6 +1273,28 @@ export class Interpreter {
                                 if (!finishedFrame.returnState.returned) {
                                     throw new Error(`Das Unterprogramm ${finishedFrame.programName} hat keinen Wert zurückgegeben.`);
                                 }
+
+                                this.applyPendingReturnValue(
+                                    callerFrame,
+                                    finishedFrame.caller,
+                                    finishedFrame.returnState.value
+                                );
+
+                                const action = finishedFrame.caller.pendingAction;
+                                let message = `Das Unterprogramm ${finishedFrame.programName} ist beendet.`;
+
+                                if (action?.kind === "declaration") {
+                                    message += ` Der Variable ${action.variable} vom Typ ${action.varType} wird der Wert ${this.formatValue(finishedFrame.returnState.value)} zugewiesen.`;
+                                } else if (action?.kind === "assignment") {
+                                    message += ` Der Variable ${action.variable} wird der Wert ${this.formatValue(finishedFrame.returnState.value)} zugewiesen.`;
+                                }
+
+                                return this.createTraceEntry(
+                                    "debug",
+                                    finishedFrame.caller.node,
+                                    message,
+                                    callerFrame.programId
+                                );
                             }
 
                             return this.createTraceEntry(
@@ -1473,6 +1583,22 @@ export class Interpreter {
 
     executeSimpleNode(node, programFrame) {
         if (node.type === "declaration") {
+            const directCall = this.parseCallExpression(node.value);
+
+            if (this.debug && directCall) {
+                const result = this.callSubprogram(
+                    directCall,
+                    true,
+                    {
+                        kind: "declaration",
+                        variable: node.variable,
+                        varType: node.varType
+                    }
+                );
+
+                return result.entry;
+            }
+
             const value = this.evaluateExpression(node.value);
 
             if (!this.isValueCompatible(node.varType, value)) {
@@ -1513,6 +1639,21 @@ export class Interpreter {
         if (node.type === "assignment") {
             if (programFrame.variableTypes[node.variable] === undefined) {
                 throw new Error(`Fehler: Die Variable ${node.variable} wurde noch nicht angelegt.`);
+            }
+
+            const directCall = this.parseCallExpression(node.value);
+
+            if (this.debug && directCall) {
+                const result = this.callSubprogram(
+                    directCall,
+                    true,
+                    {
+                        kind: "assignment",
+                        variable: node.variable
+                    }
+                );
+
+                return result.entry;
             }
 
             const value = this.evaluateExpression(node.value);

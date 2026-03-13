@@ -738,7 +738,7 @@ function openHelpWindow() {
                 <h3>Variablen anlegen</h3>
                 <pre>Ganzzahl a = 5
 Kommazahl x = 3,5
-Text name = "Justus"
+Text name = "Steve Jobs"
 Wahrheitswert fertig = wahr</pre>
 
                 <h3>Ausgabe</h3>
