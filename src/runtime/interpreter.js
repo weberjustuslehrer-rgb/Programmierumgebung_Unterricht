@@ -1758,7 +1758,7 @@ export class Interpreter {
     }
 
     /* -------------------------------------------------------------
-       Öffentliche API
+       Öffentliche API --> neu
     ------------------------------------------------------------- */
 
     run(nodes, consoleDiv, programId = "main") {
