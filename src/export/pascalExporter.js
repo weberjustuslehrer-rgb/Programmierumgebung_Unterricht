@@ -535,7 +535,7 @@ function translateSourceToPascalStatements(source, functionContextName = null, s
 
         if (line.startsWith("Wiederhole ") && line.endsWith(" Mal")) {
             repeatCounter++;
-            const loopVar = `__i${repeatCounter}`;
+            const loopVar = `i${repeatCounter}`;
             const countExpr = line.substring("Wiederhole ".length, line.length - " Mal".length).trim();
 
             result.push("    ".repeat(indentLevel) + `for ${loopVar} := 1 to ${translateExpression(countExpr)} do`);
@@ -654,7 +654,7 @@ function buildSubprogramPascal(subprogram, allSubprograms) {
 
     const extraNames = [];
     for (let i = 1; i <= translated.repeatCounter; i++) {
-        extraNames.push({ name: `__i${i}`, type: "Integer" });
+        extraNames.push({ name: `i${i}`, type: "Integer" });
     }
 
     const varBlock = buildVarBlock(declarations, excludedNames, extraNames);
@@ -723,7 +723,7 @@ export function generatePascalCode(projectState) {
 
     const extraNames = [];
     for (let i = 1; i <= mainTranslated.repeatCounter; i++) {
-        extraNames.push({ name: `__i${i}`, type: "Integer" });
+        extraNames.push({ name: `i${i}`, type: "Integer" });
     }
 
     const mainVarBlock = buildVarBlock(mainDeclarations, [], extraNames);
