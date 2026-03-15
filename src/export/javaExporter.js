@@ -448,7 +448,7 @@ function translateSourceToJavaStatements(source, subprograms = []) {
 
         if (line.startsWith("Wiederhole ") && line.endsWith(" Mal")) {
             repeatCounter++;
-            const loopVar = `__i${repeatCounter}`;
+            const loopVar = `i${repeatCounter}`;
             const countExpr = line.substring("Wiederhole ".length, line.length - " Mal".length).trim();
             result.push(`${"    ".repeat(indentLevel)}for (${loopVar} = 1; ${loopVar} <= ${translateExpression(countExpr)}; ${loopVar}++) {`);
             indentLevel++;
@@ -635,7 +635,7 @@ export function generateJavaCode(projectState) {
 
     const extraLocals = [];
     for (let i = 1; i <= translatedMain.repeatCounter; i++) {
-        extraLocals.push({ name: `__i${i}`, type: "Ganzzahl" });
+        extraLocals.push({ name: `i${i}`, type: "Ganzzahl" });
     }
 
     const mainLocalDeclarations = buildLocalDeclarations(
