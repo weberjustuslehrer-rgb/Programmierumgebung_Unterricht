@@ -1306,7 +1306,7 @@ function updateModeUi() {
     }
 
     if (modeStatusLabel) {
-        modeStatusLabel.textContent = isTurtleMode ? "Turtle" : "Turtle";
+        modeStatusLabel.textContent = isTurtleMode ? "Turtle-Modus" : "Turtle-Modus";
     }
 
 
