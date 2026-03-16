@@ -328,6 +328,42 @@ function translateStatementToPython(line) {
         return `${sanitizeIdentifier(variable)} = ${translateExpressionToPython(value)}`;
     }
 
+    if (line.startsWith("vorwaerts(") && line.endsWith(")")) {
+        const expression = line.substring("vorwaerts(".length, line.length - 1).trim();
+        return `t.forward(${translateExpressionToPython(expression)})`;
+    }
+
+    if (line.startsWith("dreheLinks(") && line.endsWith(")")) {
+        const expression = line.substring("dreheLinks(".length, line.length - 1).trim();
+        return `t.left(${translateExpressionToPython(expression)})`;
+    }
+
+    if (line.startsWith("dreheRechts(") && line.endsWith(")")) {
+        const expression = line.substring("dreheRechts(".length, line.length - 1).trim();
+        return `t.right(${translateExpressionToPython(expression)})`;
+    }
+
+    if (line === "stiftHoch()") {
+        return "t.penup()";
+    }
+
+    if (line === "stiftRunter()") {
+        return "t.pendown()";
+    }
+
+    if (line === "loescheZeichenflaeche()") {
+        return "t.clear()";
+    }
+
+    if (line.startsWith("geheZu(") && line.endsWith(")")) {
+        const inner = line.substring("geheZu(".length, line.length - 1).trim();
+        const args = splitArguments(inner);
+
+        if (args.length === 2) {
+            return `t.goto(${translateExpressionToPython(args[0])}, ${translateExpressionToPython(args[1])})`;
+        }
+    }
+
     return `# Nicht übersetzt: ${line}`;
 }
 
@@ -410,6 +446,10 @@ function projectUsesRandom(projectState) {
     return allSources.some(source => source.includes("ZufallGanzzahl("));
 }
 
+function projectUsesTurtle(projectState) {
+    return projectState?.mode === "turtle";
+}
+
 function translateSubprogramToPython(subprogram) {
     const parameterNames = (subprogram.parameters || []).map(param => sanitizeIdentifier(param.name)).join(", ");
     const lines = [];
@@ -431,6 +471,36 @@ export function generatePythonCode(projectState) {
     const parts = [];
 
     parts.push("# Automatisch aus WebSkript erzeugt");
+
+    if (projectUsesTurtle(projectState)) {
+        parts.push("import turtle");
+
+        if (projectUsesRandom(projectState)) {
+            parts.push("import random");
+        }
+
+        parts.push("");
+        parts.push("screen = turtle.Screen()");
+        parts.push("t = turtle.Turtle()");
+        parts.push("t.speed(0)");
+        parts.push("");
+
+        for (const subprogram of projectState.subprograms || []) {
+            parts.push(...translateSubprogramToPython(subprogram));
+            parts.push("");
+        }
+
+        const mainLines = translateSourceToPython(projectState.mainSource || "", 0);
+        if (mainLines.length === 0) {
+            parts.push("pass");
+        } else {
+            parts.push(...mainLines);
+        }
+
+        parts.push("");
+        parts.push("screen.mainloop()");
+        return parts.join("\n");
+    }
 
     if (projectUsesRandom(projectState)) {
         parts.push("import random");

@@ -16,14 +16,17 @@ import {
     clearErrorLines,
     setErrorLines,
     clearActiveLine,
-    setActiveLine
+    setActiveLine,
+    highlightCodeBlock
 } from "./ui/editor.js";
 
 initEditor();
 
+
 const runButton = document.getElementById("runProgram");
 const debugButton = document.getElementById("debugProgram");
 const stepButton = document.getElementById("stepProgram");
+const stopButton = document.getElementById("stopProgram");
 
 const showDiagramButton = document.getElementById("showDiagram");
 const exportDiagramButton = document.getElementById("exportDiagramPng");
@@ -48,6 +51,12 @@ const openPascalViewButton = document.getElementById("openPascalView");
 const openJavaViewButton = document.getElementById("openJavaView");
 const loadProjectInput = document.getElementById("loadProjectInput");
 
+const turtleStageCard = document.getElementById("turtleStageCard");
+const turtleCanvas = document.getElementById("turtleCanvas");
+
+const modeToggleInput = document.getElementById("modeToggleInput");
+const modeStatusLabel = document.getElementById("modeStatusLabel");
+
 const clearConsoleButton = document.getElementById("clearConsole");
 
 const consoleDiv = document.getElementById("consoleOutput");
@@ -62,13 +71,30 @@ const PROJECT_VERSION = 1;
 
 const projectState = {
     currentProgramId: "main",
+    mode: "classic",
     mainSource: "",
     subprograms: []
 };
 
+const turtleState = {
+    x: 0,
+    y: 0,
+    angleDeg: 0,
+    penDown: true,
+    lines: []
+};
+
+
+
 let debugInterpreter = null;
 let lastVariableState = null;
 let isRunActive = false;
+let currentRunInterpreter = null;
+let stopExecutionRequested = false;
+
+let turtleAnimationState = null;
+let turtleAnimationPromise = Promise.resolve();
+let isTurtleAnimationRunning = false;
 
 runButton.addEventListener("click", async () => {
     if (projectState.currentProgramId !== "main") return;
@@ -85,17 +111,43 @@ runButton.addEventListener("click", async () => {
 
     await yieldToBrowser();
 
-    const interpreter = new Interpreter();
+    const interpreter = new Interpreter({
+        turtleApi: {
+            reset: clearTurtleStage,
+            forward: moveTurtleForward,
+            turnLeft: turnTurtleLeft,
+            turnRight: turnTurtleRight,
+            penUp: () => setTurtlePenDown(false),
+            penDown: () => setTurtlePenDown(true),
+            moveTo: moveTurtleTo,
+            clear: clearTurtleStage
+        }
+    });
+
     interpreter.programs = projectState;
 
     isRunActive = true;
+    currentRunInterpreter = interpreter;
+    stopExecutionRequested = false;
     updateExecutionButtons();
+
+    let wasStopped = false;
+    let stepCounter = 0;
+    const YIELD_INTERVAL = 200;
 
     try {
         interpreter.beginExecution(nodes, projectState.currentProgramId);
         await yieldToBrowser();
 
         while (interpreter.hasPendingStep()) {
+            if (stopExecutionRequested) {
+                wasStopped = true;
+                interpreter.stopExecution();
+                appendConsoleLine("Programm wurde gestoppt.", "debug");
+                clearActiveLine();
+                break;
+            }
+
             const entry = interpreter.step();
 
             if (entry) {
@@ -107,22 +159,41 @@ runButton.addEventListener("click", async () => {
 
                 if (entry.type === "output") {
                     appendConsoleLine(entry.text, "output");
-                    await yieldToBrowser();
                 } else if (entry.type === "error") {
                     appendConsoleLine(entry.text, "error");
-                    await yieldToBrowser();
                 }
+            }
+
+            stepCounter++;
+
+            if (stepCounter % YIELD_INTERVAL === 0) {
+                await yieldToBrowser();
+
+                if (stopExecutionRequested) {
+                    wasStopped = true;
+                    interpreter.stopExecution();
+                    appendConsoleLine("Programm wurde gestoppt.", "debug");
+                    clearActiveLine();
+                    break;
+                }
+            } else if (entry && (entry.type === "output" || entry.type === "error")) {
+                await yieldToBrowser();
             }
         }
 
         clearActiveLine();
-        lastVariableState = interpreter.captureVariableState(projectState.currentProgramId);
-        renderVariableState(lastVariableState);
+
+        if (!wasStopped) {
+            lastVariableState = interpreter.captureVariableState(projectState.currentProgramId);
+            renderVariableState(lastVariableState);
+        }
     } catch (error) {
         appendConsoleLine(error.message, "error");
         clearActiveLine();
     } finally {
         isRunActive = false;
+        currentRunInterpreter = null;
+        stopExecutionRequested = false;
         updateExecutionButtons();
         scrollConsoleToBottom();
     }
@@ -140,7 +211,20 @@ debugButton.addEventListener("click", () => {
     consoleDiv.innerHTML = "";
     clearActiveLine();
 
-    debugInterpreter = new Interpreter({ debug: true });
+    debugInterpreter = new Interpreter({
+        debug: true,
+        turtleApi: {
+            reset: clearTurtleStage,
+            forward: animateTurtleForward,
+            turnLeft: (angle) => animateTurtleTurn(angle),
+            turnRight: (angle) => animateTurtleTurn(-angle),
+            penUp: () => setTurtlePenDown(false),
+            penDown: () => setTurtlePenDown(true),
+            moveTo: animateTurtleMoveTo,
+            clear: clearTurtleStage
+        }
+    });
+
     debugInterpreter.programs = projectState;
     debugInterpreter.beginDebug(nodes, projectState.currentProgramId);
 
@@ -151,8 +235,8 @@ debugButton.addEventListener("click", () => {
     updateExecutionButtons();
 });
 
-stepButton.addEventListener("click", () => {
-    if (isRunActive) return;
+stepButton.addEventListener("click", async () => {
+    if (isTurtleAnimationRunning) return;
 
     if (!debugInterpreter || !debugInterpreter.hasPendingStep()) {
         appendConsoleLine("Es ist kein Debug-Ablauf vorbereitet. Bitte zuerst „Debug“ klicken.", "error");
@@ -188,6 +272,14 @@ stepButton.addEventListener("click", () => {
             renderVariableState(entry.variableState);
         }
 
+        if (projectState.mode === "turtle") {
+            isTurtleAnimationRunning = true;
+            updateExecutionButtons();
+            await waitForTurtleAnimations();
+            isTurtleAnimationRunning = false;
+            updateExecutionButtons();
+        }
+
         if (!debugInterpreter.hasPendingStep()) {
             appendConsoleLine("Debug-Ablauf beendet.", "debug");
         }
@@ -198,6 +290,30 @@ stepButton.addEventListener("click", () => {
     }
 
     updateExecutionButtons();
+});
+
+stopButton.addEventListener("click", () => {
+    if (isRunActive) {
+        if (stopExecutionRequested) {
+            return;
+        }
+
+        stopExecutionRequested = true;
+        appendConsoleLine("Stopp angefordert ...", "debug");
+        updateExecutionButtons();
+        return;
+    }
+
+    if (debugInterpreter && debugInterpreter.hasPendingStep()) {
+        debugInterpreter.stopExecution();
+        debugInterpreter = null;
+        clearActiveLine();
+        appendConsoleLine("Debug-Ablauf wurde gestoppt.", "debug");
+        updateExecutionButtons();
+        return;
+    }
+
+    appendConsoleLine("Es läuft aktuell kein Programm und kein Debug-Ablauf.", "error");
 });
 
 showDiagramButton.addEventListener("click", () => {
@@ -403,8 +519,10 @@ newProjectButton.addEventListener("click", () => {
 
     projectState.currentProgramId = "main";
     projectState.mainSource = "";
+    projectState.mode = "classic";
     projectState.subprograms = [];
 
+    updateModeUi();
     debugInterpreter = null;
     lastVariableState = null;
 
@@ -414,6 +532,7 @@ newProjectButton.addEventListener("click", () => {
     clearVariableState("Noch keine Variablen vorhanden. Nutze Run oder Debug.");
 
     renderAll();
+
     appendConsoleLine("Neues Projekt erstellt.", "debug");
 });
 
@@ -426,6 +545,7 @@ saveProjectButton.addEventListener("click", () => {
     const exportData = {
         format: PROJECT_FORMAT,
         version: PROJECT_VERSION,
+        mode: projectState.mode,
         mainSource: projectState.mainSource,
         subprograms: projectState.subprograms.map(subprogram => ({
             id: subprogram.id,
@@ -473,9 +593,14 @@ openPythonViewButton.addEventListener("click", () => {
     saveCurrentEditorContent();
 
     const pythonCode = generatePythonCode(projectState);
+
+    const subtitle = projectState.mode === "turtle"
+        ? "Automatisch erzeugte, kopierbare Python-Version des aktuellen Turtle-Projekts."
+        : "Automatisch erzeugte, kopierbare Python-Version des aktuellen WebSkript-Projekts.";
+
     openCodeWindow(
         "Python-Übersetzung",
-        "Automatisch erzeugte, kopierbare Python-Version des aktuellen WebSkript-Projekts.",
+        subtitle,
         pythonCode,
         "Python-Code wurde in die Zwischenablage kopiert."
     );
@@ -483,6 +608,12 @@ openPythonViewButton.addEventListener("click", () => {
 
 openPascalViewButton.addEventListener("click", () => {
     closeAllMenus();
+
+    if (projectState.mode === "turtle") {
+        appendConsoleLine("Im Turtle-Modus ist nur der Python-Export verfügbar.", "error");
+        return;
+    }
+
     saveCurrentEditorContent();
 
     const pascalCode = generatePascalCode(projectState);
@@ -496,6 +627,12 @@ openPascalViewButton.addEventListener("click", () => {
 
 openJavaViewButton.addEventListener("click", () => {
     closeAllMenus();
+
+    if (projectState.mode === "turtle") {
+        appendConsoleLine("Im Turtle-Modus ist nur der Python-Export verfügbar.", "error");
+        return;
+    }
+
     saveCurrentEditorContent();
 
     const javaCode = generateJavaCode(projectState);
@@ -566,6 +703,67 @@ languageMenuButton.addEventListener("click", (event) => {
         languageMenuDropdown.classList.remove("hidden");
     }
 });
+
+modeToggleInput.addEventListener("change", () => {
+    if (isRunActive || isTurtleAnimationRunning) {
+        modeToggleInput.checked = projectState.mode === "turtle";
+        return;
+    }
+
+    const nextMode = modeToggleInput.checked ? "turtle" : "classic";
+
+    if (nextMode === projectState.mode) {
+        return;
+    }
+
+    const confirmed = window.confirm(
+        "Beim Moduswechsel wird das gesamte aktuelle Projekt zurückgesetzt.\n\nAlle Programme, Unterprogramme und nicht gespeicherten Inhalte gehen verloren.\n\nMöchtest du wirklich den Modus wechseln?"
+    );
+
+    if (!confirmed) {
+        modeToggleInput.checked = projectState.mode === "turtle";
+        return;
+    }
+
+    resetProjectForModeChange(nextMode);
+
+    appendConsoleLine(
+        nextMode === "turtle"
+            ? "Turtle-Grafik-Modus aktiviert. Das Projekt wurde zurückgesetzt."
+            : "Klassischer Modus aktiviert. Das Projekt wurde zurückgesetzt.",
+        "debug"
+    );
+});
+
+window.addEventListener("resize", () => {
+    if (projectState.mode === "turtle") {
+        resizeTurtleCanvas();
+    }
+});
+
+window.testTurtle = {
+    reset() {
+        clearTurtleStage();
+    },
+    vorwaerts(strecke) {
+        moveTurtleForward(strecke);
+    },
+    links(winkel) {
+        turnTurtleLeft(winkel);
+    },
+    rechts(winkel) {
+        turnTurtleRight(winkel);
+    },
+    stiftHoch() {
+        setTurtlePenDown(false);
+    },
+    stiftRunter() {
+        setTurtlePenDown(true);
+    },
+    geheZu(x, y) {
+        moveTurtleTo(x, y);
+    }
+};
 
 document.addEventListener("click", () => {
     closeAllMenus();
@@ -682,6 +880,470 @@ function closeAllMenus() {
     languageMenuDropdown.classList.add("hidden");
 }
 
+function resetProjectForModeChange(nextMode) {
+    projectState.currentProgramId = "main";
+    projectState.mainSource = "";
+    projectState.subprograms = [];
+    projectState.mode = nextMode === "turtle" ? "turtle" : "classic";
+
+    debugInterpreter = null;
+    lastVariableState = null;
+    isRunActive = false;
+    currentRunInterpreter = null;
+    stopExecutionRequested = false;
+
+    clearTurtleStage();
+
+    clearActiveLine();
+    clearErrorLines();
+    consoleDiv.innerHTML = "";
+    clearVariableState("Noch keine Variablen vorhanden. Nutze Run oder Debug.");
+
+    renderAll();
+    updateModeUi();
+}
+
+function setEditorMode(mode) {
+    const normalizedMode = mode === "turtle" ? "turtle" : "classic";
+    const modeChanged = projectState.mode !== normalizedMode;
+
+    projectState.mode = normalizedMode;
+
+    if (modeChanged && normalizedMode === "turtle") {
+        resetTurtleState();
+    }
+
+    updateModeUi();
+}
+
+function renderTurtleStagePlaceholder() {
+    if (!turtleCanvas) {
+        return;
+    }
+
+    const ctx = turtleCanvas.getContext("2d");
+    if (!ctx) {
+        return;
+    }
+
+    const width = turtleCanvas.width;
+    const height = turtleCanvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = "#aebfb4";
+    ctx.lineWidth = 1.25;
+
+    ctx.beginPath();
+    ctx.moveTo(width / 2, 0);
+    ctx.lineTo(width / 2, height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+
+    ctx.fillStyle = "#314338";
+    ctx.font = "600 16px system-ui, sans-serif";
+    ctx.fillText("Turtle-Zeichenfläche", 24, 30);
+
+    drawTurtleLines(ctx);
+    drawTurtleShape(ctx);
+}
+
+function resizeTurtleCanvas() {
+    if (!turtleCanvas) {
+        return;
+    }
+
+    const parent = turtleCanvas.parentElement;
+    if (!parent) {
+        return;
+    }
+
+    const rect = parent.getBoundingClientRect();
+
+    const width = Math.floor(rect.width);
+    const height = Math.floor(width * (520 / 900));
+
+    turtleCanvas.width = width;
+    turtleCanvas.height = height;
+
+    renderTurtleStagePlaceholder();
+}
+
+function resetTurtleState() {
+    turtleState.x = 0;
+    turtleState.y = 0;
+    turtleState.angleDeg = 0;
+    turtleState.penDown = true;
+    turtleState.lines = [];
+}
+
+function normalizeAngle(angleDeg) {
+    let normalized = angleDeg % 360;
+    if (normalized < 0) {
+        normalized += 360;
+    }
+    return normalized;
+}
+
+function queueTurtleAnimation(animationFactory) {
+    turtleAnimationPromise = turtleAnimationPromise
+        .then(() => animationFactory())
+        .catch((error) => {
+            console.error("Turtle-Animation fehlgeschlagen:", error);
+        });
+
+    return turtleAnimationPromise;
+}
+
+async function waitForTurtleAnimations() {
+    try {
+        await turtleAnimationPromise;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function getRenderedTurtleState() {
+    if (turtleAnimationState) {
+        return {
+            x: turtleAnimationState.x,
+            y: turtleAnimationState.y,
+            angleDeg: turtleAnimationState.angleDeg
+        };
+    }
+
+    return {
+        x: turtleState.x,
+        y: turtleState.y,
+        angleDeg: turtleState.angleDeg
+    };
+}
+
+function animateTurtleMoveTo(targetX, targetY, duration = 350) {
+    return queueTurtleAnimation(() => new Promise((resolve) => {
+        const startX = turtleState.x;
+        const startY = turtleState.y;
+        const startAngle = turtleState.angleDeg;
+        const shouldDraw = turtleState.penDown;
+
+        const startTime = performance.now();
+
+        function frame(now) {
+            const progress = Math.min(1, (now - startTime) / duration);
+            const currentX = startX + (targetX - startX) * progress;
+            const currentY = startY + (targetY - startY) * progress;
+
+            turtleAnimationState = {
+                x: currentX,
+                y: currentY,
+                angleDeg: startAngle,
+                tempLine: shouldDraw
+                    ? {
+                        x1: startX,
+                        y1: startY,
+                        x2: currentX,
+                        y2: currentY
+                    }
+                    : null
+            };
+
+            renderTurtleStagePlaceholder();
+
+            if (progress < 1) {
+                requestAnimationFrame(frame);
+                return;
+            }
+
+            if (shouldDraw) {
+                turtleState.lines.push({
+                    x1: startX,
+                    y1: startY,
+                    x2: targetX,
+                    y2: targetY
+                });
+            }
+
+            turtleState.x = targetX;
+            turtleState.y = targetY;
+            turtleAnimationState = null;
+            renderTurtleStagePlaceholder();
+            resolve();
+        }
+
+        requestAnimationFrame(frame);
+    }));
+}
+
+function animateTurtleForward(distance, duration = 350) {
+    distance = Math.max(-2000, Math.min(2000, distance));
+
+    const angleRad = (turtleState.angleDeg * Math.PI) / 180;
+    const targetX = turtleState.x + Math.cos(angleRad) * distance;
+    const targetY = turtleState.y + Math.sin(angleRad) * distance;
+
+    return animateTurtleMoveTo(targetX, targetY, duration);
+}
+
+function animateTurtleTurn(deltaAngle, duration = 220) {
+    return queueTurtleAnimation(() => new Promise((resolve) => {
+        const startAngle = turtleState.angleDeg;
+        const targetAngle = normalizeAngle(startAngle + deltaAngle);
+        const startX = turtleState.x;
+        const startY = turtleState.y;
+        const startTime = performance.now();
+
+        function frame(now) {
+            const progress = Math.min(1, (now - startTime) / duration);
+            const currentAngle = startAngle + deltaAngle * progress;
+
+            turtleAnimationState = {
+                x: startX,
+                y: startY,
+                angleDeg: currentAngle,
+                tempLine: null
+            };
+
+            renderTurtleStagePlaceholder();
+
+            if (progress < 1) {
+                requestAnimationFrame(frame);
+                return;
+            }
+
+            turtleState.angleDeg = targetAngle;
+            turtleAnimationState = null;
+            renderTurtleStagePlaceholder();
+            resolve();
+        }
+
+        requestAnimationFrame(frame);
+    }));
+}
+
+const TURTLE_WORLD_HALF_WIDTH = 800;
+const TURTLE_WORLD_HALF_HEIGHT = 600;
+
+
+function turtleToCanvasPoint(x, y) {
+    if (!turtleCanvas) {
+        return { x: 0, y: 0 };
+    }
+
+    const canvasWidth = turtleCanvas.width;
+    const canvasHeight = turtleCanvas.height;
+
+    const worldWidth = TURTLE_WORLD_HALF_WIDTH * 2;
+    const worldHeight = TURTLE_WORLD_HALF_HEIGHT * 2;
+
+    const scaleX = canvasWidth / worldWidth;
+    const scaleY = canvasHeight / worldHeight;
+    const scale = Math.min(scaleX, scaleY);
+
+    return {
+        x: canvasWidth / 2 + x * scale,
+        y: canvasHeight / 2 - y * scale
+    };
+}
+
+function drawTurtleLines(ctx) {
+    ctx.save();
+    ctx.strokeStyle = "#2f5d3a";
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    for (const line of turtleState.lines) {
+        const start = turtleToCanvasPoint(line.x1, line.y1);
+        const end = turtleToCanvasPoint(line.x2, line.y2);
+
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+    }
+
+    if (turtleAnimationState?.tempLine) {
+        const start = turtleToCanvasPoint(
+            turtleAnimationState.tempLine.x1,
+            turtleAnimationState.tempLine.y1
+        );
+        const end = turtleToCanvasPoint(
+            turtleAnimationState.tempLine.x2,
+            turtleAnimationState.tempLine.y2
+        );
+
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function drawTurtleShape(ctx) {
+    const renderedState = getRenderedTurtleState();
+    const center = turtleToCanvasPoint(renderedState.x, renderedState.y);
+
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.rotate((-renderedState.angleDeg * Math.PI) / 180);
+
+    ctx.fillStyle = "#7aa287";
+    ctx.strokeStyle = "#4f6f5a";
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(9, 0);
+    ctx.lineTo(-6, -5);
+    ctx.lineTo(-2, 0);
+    ctx.lineTo(-6, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function moveTurtleForward(distance) {
+    const angleRad = (turtleState.angleDeg * Math.PI) / 180;
+
+    distance = Math.max(-2000, Math.min(2000, distance));
+
+    const startX = turtleState.x;
+    const startY = turtleState.y;
+
+    const endX = startX + Math.cos(angleRad) * distance;
+    const endY = startY + Math.sin(angleRad) * distance;
+
+    if (turtleState.penDown) {
+        turtleState.lines.push({
+            x1: startX,
+            y1: startY,
+            x2: endX,
+            y2: endY
+        });
+    }
+
+    turtleState.x = endX;
+    turtleState.y = endY;
+
+    renderTurtleStagePlaceholder();
+}
+
+function turnTurtleLeft(angleDeg) {
+    turtleState.angleDeg += angleDeg;
+    turtleState.angleDeg %= 360;
+    renderTurtleStagePlaceholder();
+}
+
+function turnTurtleRight(angleDeg) {
+    turtleState.angleDeg -= angleDeg;
+    turtleState.angleDeg %= 360;
+    renderTurtleStagePlaceholder();
+}
+
+function setTurtlePenDown(isDown) {
+    turtleState.penDown = isDown;
+    renderTurtleStagePlaceholder();
+}
+
+function moveTurtleTo(x, y) {
+    const startX = turtleState.x;
+    const startY = turtleState.y;
+
+    if (turtleState.penDown) {
+        turtleState.lines.push({
+            x1: startX,
+            y1: startY,
+            x2: x,
+            y2: y
+        });
+    }
+
+    turtleState.x = x;
+    turtleState.y = y;
+
+    renderTurtleStagePlaceholder();
+}
+
+function clearTurtleStage() {
+    turtleAnimationState = null;
+    turtleAnimationPromise = Promise.resolve();
+    isTurtleAnimationRunning = false;
+    resetTurtleState();
+    renderTurtleStagePlaceholder();
+}
+
+function updateLanguageMenuForMode() {
+    const isTurtleMode = projectState.mode === "turtle";
+
+    if (openPythonViewButton) {
+        openPythonViewButton.style.display = "";
+    }
+
+    if (openPascalViewButton) {
+        openPascalViewButton.style.display = isTurtleMode ? "none" : "";
+    }
+
+    if (openJavaViewButton) {
+        openJavaViewButton.style.display = isTurtleMode ? "none" : "";
+    }
+}
+
+function updateModeUi() {
+    const isTurtleMode = projectState.mode === "turtle";
+
+    if (modeToggleInput) {
+        modeToggleInput.checked = isTurtleMode;
+    }
+
+    if (modeStatusLabel) {
+        modeStatusLabel.textContent = isTurtleMode ? "Turtle" : "Klassisch";
+    }
+
+    document.body.classList.toggle("mode-turtle", isTurtleMode);
+
+    updateLanguageMenuForMode();
+
+    if (isTurtleMode) {
+        resizeTurtleCanvas();
+    }
+}
+
+
+
+function escapeHtmlAttribute(text) {
+    return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+}
+
+function buildHelpCodeBlock(title, code) {
+    const highlighted = highlightCodeBlock(code);
+
+    return `
+        <div class="helpSnippet">
+            <div class="helpSnippetHeader">
+                <span class="helpSnippetTitle">${escapeHtml(title)}</span>
+                <button class="copySnippetButton" data-code="${escapeHtmlAttribute(code)}">Quelltext kopieren</button>
+            </div>
+            <pre class="helpCodeBlock"><code>${highlighted}</code></pre>
+        </div>
+    `;
+}
+
+
+
 function openHelpWindow() {
     const popup = window.open("", "_blank", "width=980,height=760");
 
@@ -690,6 +1352,124 @@ function openHelpWindow() {
         return;
     }
 
+    const syntaxVariable = buildHelpCodeBlock(
+        "Variablen anlegen",
+        `Ganzzahl a = 5
+Kommazahl x = 3,5
+Text name = "Steve Jobs"
+Wahrheitswert fertig = wahr
+Ausgabe a
+Ausgabe x
+Ausgabe name
+Ausgabe fertig`
+    );
+
+    const turtleForward = buildHelpCodeBlock(
+        "Vorwärts bewegen",
+        `vorwaerts(100)`
+    );
+
+    const turtleTurn = buildHelpCodeBlock(
+        "Drehen",
+        `dreheLinks(90)
+dreheRechts(45)`
+    );
+
+    const turtlePen = buildHelpCodeBlock(
+        "Stift steuern",
+        `stiftHoch()
+stiftRunter()`
+    );
+
+    const turtleMove = buildHelpCodeBlock(
+        "Zu einer Position gehen",
+        `geheZu(200, 100)`
+    );
+
+    const turtleClear = buildHelpCodeBlock(
+        "Zeichenfläche löschen",
+        `loescheZeichenflaeche()`
+    );
+
+    const turtleExample = buildHelpCodeBlock(
+        "Beispiel: Quadrat zeichnen",
+        `loescheZeichenflaeche()
+
+Wiederhole 4 Mal
+    vorwaerts(100)
+    dreheLinks(90)
+Ende Wiederhole`
+    );
+
+    const syntaxOutput = buildHelpCodeBlock(
+        "Ausgabe",
+        `Text name = "Steve"
+Ausgabe "Hallo"
+Ausgabe name
+Ausgabe 5 + 3`
+    );
+
+    const syntaxInput = buildHelpCodeBlock(
+        "Eingabe",
+        `Eingabe Text name
+Eingabe Ganzzahl punkte
+Ausgabe name
+Ausgabe punkte`
+    );
+
+    const syntaxRandom = buildHelpCodeBlock(
+        "Zufall",
+        `Ganzzahl wurf = ZufallGanzzahl(1, 6)
+Ausgabe "Der Würfel zeigt:"
+Ausgabe wurf`
+    );
+
+    const syntaxIf = buildHelpCodeBlock(
+        "Bedingungen",
+        `Ganzzahl punkte = 7
+
+Wenn punkte >= 5 Dann
+    Ausgabe "Bestanden"
+Sonst
+    Ausgabe "Nicht bestanden"
+Ende Wenn`
+    );
+
+    const syntaxLoops = buildHelpCodeBlock(
+        "Schleifen",
+        `Ganzzahl x = 0
+
+Solange x < 3 gilt
+    Ausgabe x
+    x = x + 1
+Ende Solange
+
+Wiederhole 3 Mal
+    Ausgabe "Hallo"
+Ende Wiederhole`
+    );
+
+    const subprogramCall = buildHelpCodeBlock(
+        "Unterprogramm ohne Rückgabewert",
+        `Text name = "Anna"
+Rufe ZeigeName mit name auf`
+    );
+
+    const subprogramReturn = buildHelpCodeBlock(
+        "Unterprogramm mit Rückgabewert",
+        `Ganzzahl a = 4
+Ganzzahl b = 6
+Ganzzahl summe = Rufe Addiere mit a, b auf
+Ausgabe summe`
+    );
+
+    const subprogramReturnInside = buildHelpCodeBlock(
+        "Rückgabe im Unterprogramm",
+        `Ganzzahl a = 4
+Ganzzahl b = 6
+Gib a + b zurück`
+    );
+
     popup.document.write(`
 <!DOCTYPE html>
 <html lang="de">
@@ -697,25 +1477,208 @@ function openHelpWindow() {
     <meta charset="UTF-8">
     <title>WebSkript Hilfe</title>
     <style>
-        body { margin: 0; font-family: sans-serif; background: #eef2f7; color: #1f2937; }
-        .helpWindow { height: 100vh; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; gap: 14px; }
-        .helpCard { background: white; border: 1px solid #d8e0ea; border-radius: 14px; box-shadow: 0 6px 18px rgba(31, 41, 55, 0.06); padding: 14px; box-sizing: border-box; }
-        .helpHeader { flex-shrink: 0; }
-        .helpHeader h1 { margin: 0 0 6px 0; font-size: 24px; }
-        .helpHeader p { margin: 0; color: #556274; }
-        .helpTabs { display: flex; gap: 8px; flex-wrap: wrap; }
-        .helpTabButton { appearance: none; border: 1px solid #cfd8e3; background: #eef3f8; color: #223043; border-radius: 10px; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .helpTabButton.active { background: #dceaff; border-color: #bcd5ff; color: #0f3f83; }
-        .helpContent { flex: 1; min-height: 0; overflow: auto; }
-        .helpPanel { display: none; }
-        .helpPanel.active { display: block; }
-        h2 { margin-top: 0; }
-        h3 { margin-bottom: 8px; }
-        p, li { line-height: 1.45; }
-        code, pre { font-family: monospace; }
-        pre { background: #f5f7fb; border: 1px solid #dbe3ee; border-radius: 10px; padding: 12px; overflow: auto; white-space: pre-wrap; }
-        .helpFooter { display: flex; justify-content: flex-end; flex-shrink: 0; }
-        .closeButton { appearance: none; border: 1px solid #d3dbe6; background: #eef2f6; color: #223043; border-radius: 10px; padding: 9px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    background: linear-gradient(180deg, #f1f5f1 0%, #eaf1ec 48%, #e8efea 100%);
+    color: #1f2937;
+    overflow: hidden;
+}
+
+.helpWindow {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    box-sizing: border-box;
+    gap: 14px;
+}
+
+        .helpCard {
+            background: white;
+            border: 1px solid #d8e0ea;
+            border-radius: 14px;
+            box-shadow: 0 6px 18px rgba(31, 41, 55, 0.06);
+            padding: 14px;
+            box-sizing: border-box;
+        }
+
+        .helpHeader {
+            flex-shrink: 0;
+        }
+
+        .helpHeader h1 {
+            margin: 0 0 6px 0;
+            font-size: 24px;
+        }
+
+        .helpHeader p {
+            margin: 0;
+            color: #556274;
+        }
+
+        .helpTabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .helpTabButton {
+            appearance: none;
+            border: 1px solid #cfd8e3;
+            background: #eef3f8;
+            color: #223043;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .helpTabButton.active {
+            background: #dceaff;
+            border-color: #bcd5ff;
+            color: #0f3f83;
+        }
+
+       .helpContent {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.helpFooter {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+}
+
+        .helpPanel {
+            display: none;
+        }
+
+        .helpPanel.active {
+            display: block;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        h3 {
+            margin-bottom: 8px;
+        }
+
+        p, li {
+            line-height: 1.45;
+        }
+
+        code, pre, .helpCodeBlock {
+            font-family: monospace;
+        }
+
+        .helpSnippet {
+            margin-bottom: 18px;
+        }
+
+        .helpSnippet:last-child {
+            margin-bottom: 0;
+        }
+
+        .helpSnippetHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .helpSnippetTitle {
+            font-weight: 700;
+            color: #243246;
+        }
+
+        .copySnippetButton {
+            appearance: none;
+            border: 1px solid #cfd8e3;
+            background: linear-gradient(180deg, #f7fbf8 0%, #edf4ef 100%);
+            color: #223043;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .copySnippetButton:hover {
+            filter: brightness(1.03);
+        }
+
+        .helpCodeBlock {
+            background: #ffffff;
+            border: 1px solid #dbe3ee;
+            border-radius: 12px;
+            padding: 12px;
+            overflow: auto;
+            white-space: pre;
+            line-height: 1.45;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+            margin: 0;
+        }
+
+        
+
+        .closeButton {
+            appearance: none;
+            border: 1px solid #d3dbe6;
+            background: #eef2f6;
+            color: #223043;
+            border-radius: 10px;
+            padding: 9px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .token-keyword {
+            color: #7a2cc0;
+            font-weight: 700;
+        }
+
+        .token-type {
+            color: #1d66c2;
+            font-weight: 700;
+        }
+
+        .token-boolean {
+            color: #0e8d7b;
+            font-weight: 700;
+        }
+
+        .token-number {
+            color: #ce6600;
+            font-weight: 600;
+        }
+
+        .token-string {
+            color: #2f8850;
+        }
+
+        .token-comment {
+            color: #8a8f9a;
+            font-style: italic;
+        }
+
+        .token-function {
+            color: #8a4cc8;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -729,63 +1692,54 @@ function openHelpWindow() {
             <button class="helpTabButton active" data-tab="syntax">Syntax</button>
             <button class="helpTabButton" data-tab="subprograms">Unterprogramme</button>
             <button class="helpTabButton" data-tab="tips">Tipps</button>
-            <button class="helpTabButton" data-tab="examples">Beispiele</button>
         </div>
-
+        
         <div class="helpContent helpCard">
-            <div class="helpPanel active" data-panel="syntax">
-                <h2>Syntaxübersicht</h2>
-                <h3>Variablen anlegen</h3>
-                <pre>Ganzzahl a = 5
-Kommazahl x = 3,5
-Text name = "Steve Jobs"
-Wahrheitswert fertig = wahr</pre>
 
-                <h3>Ausgabe</h3>
-                <pre>Ausgabe "Hallo"
-Ausgabe name
-Ausgabe 5 + 3</pre>
-
-                <h3>Eingabe</h3>
-                <pre>Eingabe Text name
-Eingabe Ganzzahl punkte</pre>
-
-                <h3>Zufall</h3>
-                <pre>Ganzzahl wurf = ZufallGanzzahl(1, 6)
-Ausgabe wurf</pre>
-
-                <h3>Bedingungen</h3>
-                <pre>Wenn punkte >= 5 Dann
-    Ausgabe "Bestanden"
-Sonst
-    Ausgabe "Nicht bestanden"
-Ende Wenn</pre>
-
-                <h3>Schleifen</h3>
-                <pre>Solange x < 10 gilt
-    x = x + 1
-Ende Solange
-
-Wiederhole 3 Mal
-    Ausgabe "Hallo"
-Ende Wiederhole</pre>
-            </div>
+        <div class="helpPanel active" data-panel="syntax">
+    ${
+        projectState.mode === "turtle"
+            ? `
+        <h2>Turtle-Befehle</h2>
+        ${turtleForward}
+        ${turtleTurn}
+        ${turtlePen}
+        ${turtleMove}
+        ${turtleClear}
+        ${turtleExample}
+        `
+            : `
+        <h2>Syntaxübersicht</h2>
+        ${syntaxVariable}
+        ${syntaxOutput}
+        ${syntaxInput}
+        ${syntaxRandom}
+        ${syntaxIf}
+        ${syntaxLoops}
+        `
+    }
+</div>
 
             <div class="helpPanel" data-panel="subprograms">
-                <h2>Unterprogramme</h2>
-                <h3>Ohne Rückgabewert</h3>
-                <p>Ein Unterprogramm ohne Rückgabewert wird als eigene Anweisung aufgerufen.</p>
-                <pre>Rufe Begruessung auf
-Rufe ZeigeName mit name auf</pre>
-
-                <h3>Mit Rückgabewert</h3>
-                <p>Ein Unterprogramm mit Rückgabewert wird in einem Ausdruck verwendet.</p>
-                <pre>Ganzzahl summe = Rufe Addiere mit a, b auf
-Text text = Rufe ErzeugeText mit name auf</pre>
-
-                <h3>Rückgabe im Unterprogramm</h3>
-                <pre>Gib a + b zurück</pre>
-            </div>
+    ${
+        projectState.mode === "turtle"
+            ? `
+        <h2>Turtle und Unterprogramme</h2>
+        <p>Turtle-Befehle können auch in Unterprogrammen verwendet werden.</p>
+        ${turtleExample}
+        `
+            : `
+        <h2>Unterprogramme</h2>
+        <p>Ein Unterprogramm ohne Rückgabewert wird als eigene Anweisung aufgerufen.</p>
+        ${subprogramCall}
+        <p>Wichtig ist, dass das Unterprogramm in diesem Beispiel mit dem Namen "zeigeName" gespeichert wird.</p>
+        <p>Ein Unterprogramm mit Rückgabewert wird in einem Ausdruck verwendet.</p>
+        ${subprogramReturn}
+        <p>Im Unterprogramm selbst wird mit <code>Gib ... zurück</code> ein Wert zurückgegeben.</p>
+        ${subprogramReturnInside}
+        `
+    }
+</div>
 
             <div class="helpPanel" data-panel="tips">
                 <h2>Tipps und Hinweise</h2>
@@ -799,23 +1753,17 @@ Text text = Rufe ErzeugeText mit name auf</pre>
                     <li>PNG-Export des Struktogramms: <code>Strg/Cmd + Shift + E</code></li>
                 </ul>
             </div>
-
-            <div class="helpPanel" data-panel="examples">
-                <h2>Beispielprogramme</h2>
-                <pre>Ganzzahl wurf = ZufallGanzzahl(1, 6)
-Ausgabe "Der Würfel zeigt:"
-Ausgabe wurf</pre>
-            </div>
         </div>
 
-        <div class="helpFooter">
-            <button class="closeButton" onclick="window.close()">Fenster schließen</button>
-        </div>
+        <div class="helpFooter helpCard">
+    <button class="closeButton" onclick="window.close()">Fenster schließen</button>
+</div>
     </div>
 
     <script>
         const buttons = document.querySelectorAll(".helpTabButton");
         const panels = document.querySelectorAll(".helpPanel");
+
         buttons.forEach(button => {
             button.addEventListener("click", () => {
                 const tab = button.dataset.tab;
@@ -823,6 +1771,26 @@ Ausgabe wurf</pre>
                 panels.forEach(panel => panel.classList.remove("active"));
                 button.classList.add("active");
                 document.querySelector('[data-panel="' + tab + '"]').classList.add("active");
+            });
+        });
+
+        document.querySelectorAll(".copySnippetButton").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const code = button.dataset.code || "";
+                const originalText = button.textContent;
+
+                try {
+                    await navigator.clipboard.writeText(code);
+                    button.textContent = "Kopiert";
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 1200);
+                } catch (error) {
+                    button.textContent = "Kopieren fehlgeschlagen";
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 1600);
+                }
             });
         });
     </script>
@@ -991,10 +1959,12 @@ function switchToProgram(programId, resetConsole = true, preserveEditorState = f
 function updateExecutionButtons() {
     const isMainProgram = projectState.currentProgramId === "main";
     const hasPreparedDebug = !!debugInterpreter && debugInterpreter.hasPendingStep();
+    const canStop = isRunActive || hasPreparedDebug || isTurtleAnimationRunning;
 
-    runButton.disabled = !isMainProgram || isRunActive;
-    debugButton.disabled = !isMainProgram || isRunActive;
-    stepButton.disabled = !hasPreparedDebug || isRunActive;
+    runButton.disabled = !isMainProgram || isRunActive || isTurtleAnimationRunning;
+    debugButton.disabled = !isMainProgram || isRunActive || isTurtleAnimationRunning;
+    stepButton.disabled = !hasPreparedDebug || isRunActive || isTurtleAnimationRunning;
+    stopButton.disabled = !canStop;
 }
 
 function updateEditorTitle() {
@@ -1336,6 +2306,7 @@ function normalizeImportedProject(rawData) {
     return {
         ok: true,
         project: {
+            mode: rawData.mode === "turtle" ? "turtle" : "classic",
             mainSource,
             subprograms: normalizedSubprograms
         }
@@ -1343,13 +2314,14 @@ function normalizeImportedProject(rawData) {
 }
 
 function applyImportedProject(project) {
+    projectState.mode = project.mode === "turtle" ? "turtle" : "classic";
     projectState.mainSource = project.mainSource;
     projectState.subprograms = project.subprograms;
     projectState.currentProgramId = "main";
 
     debugInterpreter = null;
     lastVariableState = null;
-
+    updateModeUi();
     clearActiveLine();
     clearErrorLines();
     consoleDiv.innerHTML = "";
@@ -1389,6 +2361,13 @@ function yieldToBrowser() {
     return new Promise(resolve => {
         requestAnimationFrame(() => resolve());
     });
+}
+
+updateModeUi();
+
+
+if (projectState.mode === "turtle") {
+    resizeTurtleCanvas();
 }
 
 clearVariableState("Noch keine Variablen vorhanden. Nutze Run oder Debug.");

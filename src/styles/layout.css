@@ -30,6 +30,25 @@
     --radius-sm: 10px;
 }
 
+
+body.mode-turtle {
+    --bg-main:
+            linear-gradient(180deg, #f4eff9 0%, #eee7f6 48%, #ebe3f4 100%);
+
+    --card-bg: #ffffff;
+    --card-border: #d9cfea;
+    --card-shadow: 0 8px 22px rgba(88, 67, 119, 0.10);
+
+    --text-main: #1f2937;
+    --text-soft: #645d73;
+
+    --toolbar-main: linear-gradient(135deg, #f2eef9 0%, #ebe4f5 100%);
+    --toolbar-side: linear-gradient(135deg, #f5f1fb 0%, #ece5f6 100%);
+
+    --editor-border: #d7cdea;
+    --editor-bg: #ffffff;
+}
+
 *,
 *::before,
 *::after {
@@ -116,6 +135,10 @@ body > h1 {
     background: linear-gradient(180deg, #f4f8f5 0%, #ebf2ed 100%);
 }
 
+body.mode-turtle .menuBar {
+    background: linear-gradient(180deg, #f3eef9 0%, #ece5f5 100%);
+}
+
 .menuGroup {
     position: relative;
 }
@@ -133,10 +156,20 @@ body > h1 {
     transition: transform 0.08s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
+body.mode-turtle .menuButton {
+    border: 1px solid #d4c8e8;
+    background: linear-gradient(180deg, #f3eef9 0%, #eae2f5 100%);
+    color: #3a3050;
+}
+
 .menuButton:hover {
     background: linear-gradient(180deg, #ffffff 0%, #e6efe9 100%);
     transform: translateY(-1px);
     box-shadow: 0 8px 18px rgba(31, 41, 55, 0.08);
+}
+
+body.mode-turtle .menuButton:hover {
+    background: linear-gradient(180deg, #ffffff 0%, #e6dcf3 100%);
 }
 
 .menuButtonDisabled {
@@ -280,6 +313,11 @@ body > h1 {
     border: 1px solid #d8e2db;
 }
 
+body.mode-turtle .actionToolbar-secondary {
+    background: linear-gradient(135deg, #f3eef9 0%, #ebe4f5 100%);
+    border: 1px solid #d9cfea;
+}
+
 /* --- Buttons --- */
 
 .ui-button {
@@ -295,7 +333,7 @@ body > h1 {
 
 .ui-button:hover {
     transform: translateY(-1px);
-    filter: brightness(1.01);
+    filter: brightness(1.05);
 }
 
 .ui-button:active {
@@ -311,21 +349,27 @@ body > h1 {
 }
 
 .ui-button-run {
-    background: linear-gradient(180deg, #3a9b56 0%, #2f7f47 100%);
-    color: white;
-    box-shadow: 0 8px 18px rgba(46, 125, 50, 0.24);
+    background: linear-gradient(180deg, #8eddd3 0%, #6fc7bb 100%);
+    color: #1f3a3a;
+    box-shadow: 0 6px 14px rgba(120, 200, 190, 0.25);
 }
 
 .ui-button-debug {
-    background: linear-gradient(180deg, #2f7ddd 0%, #1a63be 100%);
-    color: white;
-    box-shadow: 0 8px 18px rgba(21, 101, 192, 0.24);
+    background: linear-gradient(180deg, #c7b6ff 0%, #a996ef 100%);
+    color: #2f2a45;
+    box-shadow: 0 6px 14px rgba(170, 150, 230, 0.25);
 }
 
 .ui-button-step {
-    background: linear-gradient(180deg, #8b45c7 0%, #6f2ea7 100%);
-    color: white;
-    box-shadow: 0 8px 18px rgba(123, 31, 162, 0.24);
+    background: linear-gradient(180deg, #d7c9ff 0%, #b7a8f5 100%);
+    color: #322a55;
+    box-shadow: 0 6px 14px rgba(180, 160, 240, 0.22);
+}
+
+.ui-button-stop {
+    background: linear-gradient(180deg, #ffb8b0 0%, #f5968f 100%);
+    color: #4a2a2a;
+    box-shadow: 0 6px 14px rgba(240, 140, 130, 0.25);
 }
 
 .ui-button-panel {
@@ -816,4 +860,353 @@ body.diagram-popup {
     .editorArea {
         width: 100%;
     }
+}
+
+/* --- Mobile Optimierung --- */
+
+@media (max-width: 900px) {
+    body {
+        padding: 14px;
+    }
+
+    .mainLayout {
+        gap: 14px;
+    }
+
+    .mainLayout::before {
+        font-size: 24px;
+        line-height: 1.2;
+        padding: 14px 16px;
+        border-radius: 16px;
+    }
+
+    .sectionCard {
+        padding: 14px;
+        border-radius: 16px;
+    }
+
+    .workspace,
+    .topArea {
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .programSidebar,
+    .contentArea,
+    .editorArea,
+    .sidePanelArea {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .programSidebar {
+        flex: none;
+    }
+
+    .menuBar {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .menuGroup {
+        flex: 1 1 auto;
+        min-width: 140px;
+    }
+
+    .menuButton {
+        width: 100%;
+        min-height: 42px;
+    }
+
+    .menuDropdown {
+        min-width: 200px;
+        max-width: min(92vw, 320px);
+    }
+
+    .actionToolbar {
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .actionToolbar .ui-button {
+        flex: 1 1 calc(50% - 10px);
+        min-height: 44px;
+    }
+
+    .sidebarButtonGroup button,
+    .ui-button,
+    .menuButton {
+        min-height: 44px;
+    }
+
+    .editorTopHeader {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .editor-shell {
+        height: 300px;
+    }
+
+    .line-numbers {
+        width: 48px;
+        min-width: 48px;
+        padding: 10px 6px;
+        font-size: 13px;
+    }
+
+    .editor-highlight,
+    #editor {
+        padding: 10px 10px;
+        font-size: 13px;
+    }
+
+    #consoleOutput {
+        min-height: 160px;
+        height: 160px;
+        font-size: 13px;
+    }
+
+    #variablesContent {
+        min-height: 180px;
+        max-height: none;
+    }
+
+    .variable-table {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 640px) {
+    body {
+        padding: 10px;
+    }
+
+    .mainLayout::before {
+        font-size: 20px;
+        padding: 12px 14px;
+    }
+
+    .sectionCard {
+        padding: 12px;
+        border-radius: 14px;
+    }
+
+    .menuBar {
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .menuGroup {
+        min-width: 0;
+        flex: 1 1 100%;
+    }
+
+    .menuButton {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+
+    .actionToolbar {
+        flex-direction: column;
+    }
+
+    .actionToolbar .ui-button {
+        width: 100%;
+        flex: none;
+    }
+
+    .programSidebar {
+        width: 100%;
+    }
+
+    .programEntry {
+        padding: 11px 12px;
+        font-size: 14px;
+    }
+
+    .editor-shell {
+        height: 260px;
+        border-radius: 14px;
+    }
+
+    .line-numbers {
+        width: 42px;
+        min-width: 42px;
+        font-size: 12px;
+        padding: 10px 4px;
+    }
+
+    .editor-highlight,
+    #editor {
+        font-size: 12px;
+        line-height: 1.45;
+        padding: 10px 8px;
+    }
+
+    .consoleArea {
+        padding: 12px;
+    }
+
+    #consoleOutput {
+        min-height: 140px;
+        height: 140px;
+        padding: 10px;
+        border-radius: 12px;
+    }
+
+    #variablesContent {
+        padding: 10px;
+        border-radius: 12px;
+        min-height: 160px;
+    }
+
+    .variable-table,
+    .variable-table th,
+    .variable-table td {
+        font-size: 12px;
+    }
+
+    .metaLine {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+
+    h3 {
+        font-size: 16px;
+    }
+}
+/* --- Modus-Umschalter --- */
+
+.modeSwitchGroup {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 8px;
+}
+
+.modeSwitchLabel {
+    font-size: 14px;
+    font-weight: 700;
+    color: #314338;
+}
+
+.modeStatusLabel {
+    min-width: 78px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #314338;
+}
+
+body.mode-turtle .modeSwitchLabel,
+body.mode-turtle .modeStatusLabel {
+    color: #4f4268;
+}
+
+.modeToggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 58px;
+    height: 32px;
+    cursor: pointer;
+}
+
+.modeToggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modeToggleSlider {
+    position: relative;
+    width: 58px;
+    height: 32px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #dfe8e2 0%, #cfdccf 100%);
+    border: 1px solid #c7d3c9;
+    box-shadow: inset 0 1px 2px rgba(31, 41, 55, 0.08);
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.modeToggleSlider::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(31, 41, 55, 0.18);
+    transition: transform 0.2s ease;
+}
+
+.modeToggle input:checked + .modeToggleSlider {
+    background: linear-gradient(180deg, #dfe9ff 0%, #c9dbff 100%);
+    border-color: #b8cbef;
+}
+
+.modeToggle input:checked + .modeToggleSlider::after {
+    transform: translateX(26px);
+}
+
+/* Sichtbarer Seitenmodus */
+
+
+body.mode-turtle .mainLayout::before {
+    content: "WebSkript IDE - Turtle-Grafik-Modus";
+    background: linear-gradient(180deg, #efe8f8 0%, #e6dcf3 100%);
+    border: 1px solid #d5c8e7;
+    color: #3a3050;
+}
+
+/* ===== Turtle-Bereich ===== */
+
+.turtleStageCard {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.turtleStageInner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 560px;
+    padding: 12px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(243, 247, 244, 0.95) 0%, rgba(234, 241, 236, 0.98) 100%);
+    border: 1px solid #d4dfd7;
+}
+
+body.mode-turtle .turtleStageInner {
+    background: linear-gradient(180deg, rgba(243, 238, 249, 0.96) 0%, rgba(235, 227, 244, 0.98) 100%);
+    border: 1px solid #d9cfea;
+}
+
+#turtleCanvas {
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+    aspect-ratio: 900 / 520;
+    display: block;
+    background: #ffffff;
+    border: 1px solid #cfd9d2;
+    border-radius: 14px;
+    box-shadow: inset 0 1px 3px rgba(31, 41, 55, 0.08);
+}
+
+/* Turtle-Modus: klassische Ausgaben ausblenden */
+body.mode-turtle .consoleAreaInline,
+body.mode-turtle #variablesPanel {
+    display: none !important;
+}
+
+/* Klassischer Modus: Turtle-Bereich ausblenden */
+body:not(.mode-turtle) .turtleStageCard {
+    display: none !important;
 }

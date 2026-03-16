@@ -169,6 +169,71 @@ export function parseLine(line) {
         };
     }
 
+    // Turtle: vorwaerts(...)
+    if (line.startsWith("vorwaerts(") && line.endsWith(")")) {
+        return {
+            type: "turtle_forward",
+            expression: line.substring("vorwaerts(".length, line.length - 1).trim()
+        };
+    }
+
+// Turtle: dreheLinks(...)
+    if (line.startsWith("dreheLinks(") && line.endsWith(")")) {
+        return {
+            type: "turtle_left",
+            expression: line.substring("dreheLinks(".length, line.length - 1).trim()
+        };
+    }
+
+// Turtle: dreheRechts(...)
+    if (line.startsWith("dreheRechts(") && line.endsWith(")")) {
+        return {
+            type: "turtle_right",
+            expression: line.substring("dreheRechts(".length, line.length - 1).trim()
+        };
+    }
+
+// Turtle: stiftHoch()
+    if (line === "stiftHoch()") {
+        return {
+            type: "turtle_pen_up"
+        };
+    }
+
+// Turtle: stiftRunter()
+    if (line === "stiftRunter()") {
+        return {
+            type: "turtle_pen_down"
+        };
+    }
+
+// Turtle: loescheZeichenflaeche()
+    if (line === "loescheZeichenflaeche()") {
+        return {
+            type: "turtle_clear"
+        };
+    }
+
+// Turtle: geheZu(x, y)
+    if (line.startsWith("geheZu(") && line.endsWith(")")) {
+        const inner = line.substring("geheZu(".length, line.length - 1).trim();
+        const args = splitArguments(inner);
+
+        if (args.length !== 2) {
+            return {
+                type: "error",
+                message: "geheZu erwartet genau zwei Argumente.",
+                content: line
+            };
+        }
+
+        return {
+            type: "turtle_move_to",
+            xExpression: args[0],
+            yExpression: args[1]
+        };
+    }
+
     // Zuweisung
     if (
         line.includes("=") &&

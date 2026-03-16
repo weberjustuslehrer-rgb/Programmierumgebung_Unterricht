@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <title>WebSkript - IDE</title>
     <link rel="stylesheet" href="./src/styles/layout.css">
+    <!-- Standard-Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <!-- Fallback für ältere Browser -->
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
 </head>
 <body>
@@ -37,7 +43,14 @@
                 <button id="openJavaView" class="menuItem">Java anzeigen</button>
             </div>
         </div>
-
+        <div class="modeSwitchGroup">
+            <span class="modeSwitchLabel">Modus</span>
+            <label class="modeToggle" for="modeToggleInput">
+                <input id="modeToggleInput" type="checkbox">
+                <span class="modeToggleSlider"></span>
+            </label>
+            <span id="modeStatusLabel" class="modeStatusLabel">Klassisch</span>
+        </div>
         <input id="loadProjectInput" type="file" accept=".wskript,application/json" hidden>
     </nav>
 
@@ -64,6 +77,7 @@
                         <button id="runProgram" class="ui-button ui-button-run">Run</button>
                         <button id="debugProgram" class="ui-button ui-button-debug">Debug</button>
                         <button id="stepProgram" class="ui-button ui-button-step">Schritt</button>
+                        <button id="stopProgram" class="ui-button ui-button-stop">Stop</button>
                     </div>
 
                     <div class="editorTopHeader">
@@ -100,6 +114,16 @@
                             <button id="clearConsole" class="ui-button ui-button-neutral">Konsole leeren</button>
                         </div>
                         <div id="consoleOutput"></div>
+                    </section>
+
+                    <section id="turtleStageCard" class="sectionCard turtleStageCard hidden">
+                        <div class="panelHeader">
+                            <h2>Turtle-Grafik</h2>
+                        </div>
+
+                        <div class="turtleStageInner">
+                            <canvas id="turtleCanvas" width="900" height="520"></canvas>
+                        </div>
                     </section>
 
                     <div id="variablesPanel" class="panelCard">

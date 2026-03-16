@@ -188,6 +188,7 @@ function highlightLine(line) {
 
     const replacements = [
         { regex: /\b(ZufallGanzzahl)\b/g, className: "token-keyword" },
+        { regex: /\b(vorwaerts|dreheLinks|dreheRechts|stiftHoch|stiftRunter|geheZu|loescheZeichenflaeche)\b/g, className: "token-function" },
         { regex: /\b(Sonst Wenn|Ende Wenn|Ende Solange|Ende Wiederhole)\b/g, className: "token-keyword" },
         { regex: /\b(Wenn|Dann|Sonst|Solange|gilt|Wiederhole|Mal|Eingabe|Ausgabe|Gib|zurück|Rufe|mit|auf)\b/g, className: "token-keyword" },
         { regex: /\b(Ganzzahl|Kommazahl|Text|Wahrheitswert)\b/g, className: "token-type" },
@@ -210,6 +211,17 @@ function highlightLine(line) {
     }
 
     return escaped;
+}
+
+export function highlightLineForDisplay(line) {
+    return highlightLine(line);
+}
+
+export function highlightCodeBlock(code) {
+    return code
+        .split("\n")
+        .map((line) => highlightLine(line) || "&nbsp;")
+        .join("\n");
 }
 
 function findCommentIndex(line) {

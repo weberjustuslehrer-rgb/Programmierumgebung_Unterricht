@@ -55,6 +55,29 @@ function renderStatementNode(node) {
     else if (node.type === "return") {
         box.textContent = `Gib ${node.expression} zurück`;
     }
+
+    else if (node.type === "turtle_forward") {
+        box.textContent = `Gehe ${node.expression} Schritte vorwärts`;
+    }
+    else if (node.type === "turtle_left") {
+        box.textContent = `Drehe um ${node.expression}° nach links`;
+    }
+    else if (node.type === "turtle_right") {
+        box.textContent = `Drehe um ${node.expression}° nach rechts`;
+    }
+    else if (node.type === "turtle_pen_up") {
+        box.textContent = "Hebe den Stift an";
+    }
+    else if (node.type === "turtle_pen_down") {
+        box.textContent = "Setze den Stift auf";
+    }
+    else if (node.type === "turtle_clear") {
+        box.textContent = "Lösche die Zeichenfläche";
+    }
+    else if (node.type === "turtle_move_to") {
+        box.textContent = `Gehe zu (${node.xExpression} | ${node.yExpression})`;
+    }
+
     else {
         box.textContent = node.type;
     }

@@ -3,6 +3,7 @@ export class Interpreter {
         this.maxLoopIterations = options.maxLoopIterations || 100000;
         this.debug = options.debug || false;
         this.programs = options.programs || null;
+        this.turtleApi = options.turtleApi || null;
 
         this.mainContext = {
             variables: {},
@@ -124,6 +125,10 @@ export class Interpreter {
 
     isMainProgramId(programId) {
         return programId === "main";
+    }
+
+    isTurtleMode() {
+        return this.programs?.mode === "turtle";
     }
 
     captureVariableState(currentProgramId) {
@@ -650,6 +655,64 @@ export class Interpreter {
             };
         }
 
+        if (line.startsWith("vorwaerts(") && line.endsWith(")")) {
+            return {
+                type: "turtle_forward",
+                expression: line.substring("vorwaerts(".length, line.length - 1).trim()
+            };
+        }
+
+        if (line.startsWith("dreheLinks(") && line.endsWith(")")) {
+            return {
+                type: "turtle_left",
+                expression: line.substring("dreheLinks(".length, line.length - 1).trim()
+            };
+        }
+
+        if (line.startsWith("dreheRechts(") && line.endsWith(")")) {
+            return {
+                type: "turtle_right",
+                expression: line.substring("dreheRechts(".length, line.length - 1).trim()
+            };
+        }
+
+        if (line === "stiftHoch()") {
+            return {
+                type: "turtle_pen_up"
+            };
+        }
+
+        if (line === "stiftRunter()") {
+            return {
+                type: "turtle_pen_down"
+            };
+        }
+
+        if (line === "loescheZeichenflaeche()") {
+            return {
+                type: "turtle_clear"
+            };
+        }
+
+        if (line.startsWith("geheZu(") && line.endsWith(")")) {
+            const inner = line.substring("geheZu(".length, line.length - 1).trim();
+            const args = this.splitArguments(inner);
+
+            if (args.length !== 2) {
+                return {
+                    type: "error",
+                    message: "geheZu erwartet genau zwei Argumente.",
+                    content: line
+                };
+            }
+
+            return {
+                type: "turtle_move_to",
+                xExpression: args[0],
+                yExpression: args[1]
+            };
+        }
+
         if (
             line.includes("=") &&
             !line.includes("==") &&
@@ -884,12 +947,21 @@ export class Interpreter {
                 })
             ],
             isFinished: false,
-            lastEntry: null
+            lastEntry: null,
+            pendingEntries: []
         };
     }
 
     hasPendingStep() {
-        return !!this.execution && !this.execution.isFinished;
+        if (!this.execution) {
+            return false;
+        }
+
+        const hasPendingEntries =
+            Array.isArray(this.execution.pendingEntries) &&
+            this.execution.pendingEntries.length > 0;
+
+        return !this.execution.isFinished || hasPendingEntries;
     }
 
     currentProgramFrame() {
@@ -1183,7 +1255,18 @@ export class Interpreter {
     ------------------------------------------------------------- */
 
     step() {
-        if (!this.execution || this.execution.isFinished) {
+        if (!this.execution) {
+            return null;
+        }
+
+        if (
+            Array.isArray(this.execution.pendingEntries) &&
+            this.execution.pendingEntries.length > 0
+        ) {
+            return this.execution.pendingEntries.shift();
+        }
+
+        if (this.execution.isFinished) {
             return null;
         }
 
@@ -1582,6 +1665,8 @@ export class Interpreter {
     }
 
     executeSimpleNode(node, programFrame) {
+
+
         if (node.type === "declaration") {
             const directCall = this.parseCallExpression(node.value);
 
@@ -1678,12 +1763,26 @@ export class Interpreter {
 
         if (node.type === "output") {
             const value = this.evaluateExpression(node.expression);
+            const formattedValue = this.formatValue(value);
 
             if (this.debug) {
+                if (!Array.isArray(this.execution.pendingEntries)) {
+                    this.execution.pendingEntries = [];
+                }
+
+                this.execution.pendingEntries.push(
+                    this.createTraceEntry(
+                        "output",
+                        node,
+                        formattedValue,
+                        programFrame.programId
+                    )
+                );
+
                 return this.createTraceEntry(
                     "debug",
                     node,
-                    `Es wird der Wert ${this.formatValue(value)} ausgegeben.`,
+                    `Es wird der Wert ${formattedValue} ausgegeben.`,
                     programFrame.programId
                 );
             }
@@ -1691,7 +1790,7 @@ export class Interpreter {
             return this.createTraceEntry(
                 "output",
                 node,
-                this.formatValue(value),
+                formattedValue,
                 programFrame.programId
             );
         }
@@ -1736,6 +1835,179 @@ export class Interpreter {
             return result.entry;
         }
 
+        if (node.type === "turtle_forward") {
+            if (!this.isTurtleMode()) {
+                throw new Error("Der Befehl vorwaerts(...) ist nur im Turtle-Modus erlaubt.");
+            }
+
+            if (!this.turtleApi?.forward) {
+                throw new Error("Die Turtle-Umgebung ist nicht verfügbar.");
+            }
+
+            const distance = this.evaluateExpression(node.expression);
+
+            if (typeof distance !== "number" || Number.isNaN(distance)) {
+                throw new Error("vorwaerts(...) erwartet eine Zahl.");
+            }
+
+            this.turtleApi.forward(distance);
+
+            return this.debug
+                ? this.createTraceEntry(
+                    "debug",
+                    node,
+                    `Die Turtle bewegt sich um ${this.formatValue(distance)} Schritte vorwärts.`,
+                    programFrame.programId
+                )
+                : null;
+        }
+
+        if (node.type === "turtle_left") {
+            if (!this.isTurtleMode()) {
+                throw new Error("Der Befehl dreheLinks(...) ist nur im Turtle-Modus erlaubt.");
+            }
+
+            if (!this.turtleApi?.turnLeft) {
+                throw new Error("Die Turtle-Umgebung ist nicht verfügbar.");
+            }
+
+            const angle = this.evaluateExpression(node.expression);
+
+            if (typeof angle !== "number" || Number.isNaN(angle)) {
+                throw new Error("dreheLinks(...) erwartet eine Zahl.");
+            }
+
+            this.turtleApi.turnLeft(angle);
+
+            return this.debug
+                ? this.createTraceEntry(
+                    "debug",
+                    node,
+                    `Die Turtle dreht sich um ${this.formatValue(angle)} Grad nach links.`,
+                    programFrame.programId
+                )
+                : null;
+        }
+
+        if (node.type === "turtle_right") {
+            if (!this.isTurtleMode()) {
+                throw new Error("Der Befehl dreheRechts(...) ist nur im Turtle-Modus erlaubt.");
+            }
+
+            if (!this.turtleApi?.turnRight) {
+                throw new Error("Die Turtle-Umgebung ist nicht verfügbar.");
+            }
+
+            const angle = this.evaluateExpression(node.expression);
+
+            if (typeof angle !== "number" || Number.isNaN(angle)) {
+                throw new Error("dreheRechts(...) erwartet eine Zahl.");
+            }
+
+            this.turtleApi.turnRight(angle);
+
+            return this.debug
+                ? this.createTraceEntry(
+                    "debug",
+                    node,
+                    `Die Turtle dreht sich um ${this.formatValue(angle)} Grad nach rechts.`,
+                    programFrame.programId
+                )
+                : null;
+        }
+
+        if (node.type === "turtle_pen_up") {
+            if (!this.isTurtleMode()) {
+                throw new Error("Der Befehl stiftHoch() ist nur im Turtle-Modus erlaubt.");
+            }
+
+            if (!this.turtleApi?.penUp) {
+                throw new Error("Die Turtle-Umgebung ist nicht verfügbar.");
+            }
+
+            this.turtleApi.penUp();
+
+            return this.debug
+                ? this.createTraceEntry(
+                    "debug",
+                    node,
+                    "Der Stift wird angehoben.",
+                    programFrame.programId
+                )
+                : null;
+        }
+
+        if (node.type === "turtle_pen_down") {
+            if (!this.isTurtleMode()) {
+                throw new Error("Der Befehl stiftRunter() ist nur im Turtle-Modus erlaubt.");
+            }
+
+            if (!this.turtleApi?.penDown) {
+                throw new Error("Die Turtle-Umgebung ist nicht verfügbar.");
+            }
+
+            this.turtleApi.penDown();
+
+            return this.debug
+                ? this.createTraceEntry(
+                    "debug",
+                    node,
+                    "Der Stift wird abgesenkt.",
+                    programFrame.programId
+                )
+                : null;
+        }
+
+        if (node.type === "turtle_clear") {
+            if (!this.isTurtleMode()) {
+                throw new Error("Der Befehl loescheZeichenflaeche() ist nur im Turtle-Modus erlaubt.");
+            }
+
+            if (!this.turtleApi?.clear) {
+                throw new Error("Die Turtle-Umgebung ist nicht verfügbar.");
+            }
+
+            this.turtleApi.clear();
+
+            return this.debug
+                ? this.createTraceEntry(
+                    "debug",
+                    node,
+                    "Die Zeichenfläche wird gelöscht.",
+                    programFrame.programId
+                )
+                : null;
+        }
+
+        if (node.type === "turtle_move_to") {
+            if (!this.isTurtleMode()) {
+                throw new Error("Der Befehl geheZu(...) ist nur im Turtle-Modus erlaubt.");
+            }
+
+            if (!this.turtleApi?.moveTo) {
+                throw new Error("Die Turtle-Umgebung ist nicht verfügbar.");
+            }
+
+            const x = this.evaluateExpression(node.xExpression);
+            const y = this.evaluateExpression(node.yExpression);
+
+            if (typeof x !== "number" || Number.isNaN(x) || typeof y !== "number" || Number.isNaN(y)) {
+                throw new Error("geheZu(...) erwartet zwei Zahlen.");
+            }
+
+            this.turtleApi.moveTo(x, y);
+
+            return this.debug
+                ? this.createTraceEntry(
+                    "debug",
+                    node,
+                    `Die Turtle bewegt sich zu (${this.formatValue(x)} | ${this.formatValue(y)}).`,
+                    programFrame.programId
+                )
+                : null;
+        }
+
+
         if (node.type === "error") {
             return this.createTraceEntry(
                 "error",
@@ -1756,6 +2028,22 @@ export class Interpreter {
 
         return null;
     }
+
+
+    stopExecution() {
+        if (!this.execution) {
+            return;
+        }
+
+        this.execution.isFinished = true;
+        this.execution.callStack = [];
+        this.execution.lastEntry = null;
+
+        if (Array.isArray(this.execution.pendingEntries)) {
+            this.execution.pendingEntries.length = 0;
+        }
+    }
+
 
     /* -------------------------------------------------------------
        Öffentliche API --> neu
