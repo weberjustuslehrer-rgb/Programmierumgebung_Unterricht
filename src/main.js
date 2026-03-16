@@ -51,7 +51,7 @@ const openPascalViewButton = document.getElementById("openPascalView");
 const openJavaViewButton = document.getElementById("openJavaView");
 const loadProjectInput = document.getElementById("loadProjectInput");
 
-const turtleStageCard = document.getElementById("turtleStageCard");
+
 const turtleCanvas = document.getElementById("turtleCanvas");
 
 const modeToggleInput = document.getElementById("modeToggleInput");
@@ -903,18 +903,7 @@ function resetProjectForModeChange(nextMode) {
     updateModeUi();
 }
 
-function setEditorMode(mode) {
-    const normalizedMode = mode === "turtle" ? "turtle" : "classic";
-    const modeChanged = projectState.mode !== normalizedMode;
 
-    projectState.mode = normalizedMode;
-
-    if (modeChanged && normalizedMode === "turtle") {
-        resetTurtleState();
-    }
-
-    updateModeUi();
-}
 
 function renderTurtleStagePlaceholder() {
     if (!turtleCanvas) {
