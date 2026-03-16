@@ -1309,6 +1309,8 @@ function updateModeUi() {
         modeStatusLabel.textContent = isTurtleMode ? "Turtle" : "Turtle";
     }
 
+
+
     document.body.classList.toggle("mode-turtle", isTurtleMode);
 
     updateLanguageMenuForMode();
