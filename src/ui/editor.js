@@ -54,7 +54,7 @@ export function initEditor() {
     function syncScroll() {
         highlight.scrollTop = textarea.scrollTop;
         highlight.scrollLeft = textarea.scrollLeft;
-        lineNumbersInner.style.transform = `translateY(${-textarea.scrollTop}px)`;
+        lineNumbersInner.style.marginTop = `${-textarea.scrollTop}px`;
     }
 
     textarea.addEventListener("input", updateEditorView);

@@ -460,11 +460,14 @@ body.mode-turtle .actionToolbar-secondary {
     user-select: none;
     overflow: hidden;
     padding: 10px 8px;
-    font: 14px/1.4 monospace;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 20px;
 }
 
 #lineNumbersInner div {
-    height: 1.4em;
+    height: 20px;
+    line-height: 20px;
 }
 
 .line-number-error {
@@ -494,7 +497,9 @@ body.mode-turtle .actionToolbar-secondary {
     margin: 0;
     padding: 10px 12px;
     border: none;
-    font: 14px/1.4 monospace;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 20px;
     white-space: pre;
     word-break: normal;
     overflow-wrap: normal;
@@ -510,7 +515,8 @@ body.mode-turtle .actionToolbar-secondary {
 }
 
 .editor-line {
-    min-height: 1.4em;
+    min-height: 20px;
+    line-height: 20px;
 }
 
 .editor-line-error {
@@ -955,12 +961,24 @@ body.diagram-popup {
         min-width: 48px;
         padding: 10px 6px;
         font-size: 13px;
+        line-height: 19px;
     }
 
     .editor-highlight,
     #editor {
         padding: 10px 10px;
         font-size: 13px;
+        line-height: 19px;
+    }
+
+    #lineNumbersInner div {
+        height: 19px;
+        line-height: 19px;
+    }
+
+    .editor-line {
+        min-height: 19px;
+        line-height: 19px;
     }
 
     #consoleOutput {
@@ -1036,14 +1054,26 @@ body.diagram-popup {
         width: 42px;
         min-width: 42px;
         font-size: 12px;
+        line-height: 18px;
         padding: 10px 4px;
     }
 
     .editor-highlight,
     #editor {
         font-size: 12px;
-        line-height: 1.45;
+        line-height: 18px;
         padding: 10px 8px;
+    }
+
+
+    #lineNumbersInner div {
+        height: 18px;
+        line-height: 18px;
+    }
+
+    .editor-line {
+        min-height: 18px;
+        line-height: 18px;
     }
 
     .consoleArea {

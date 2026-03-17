@@ -69,6 +69,55 @@ const PROJECT_EXTENSION = ".wskript";
 const PROJECT_FORMAT = "webskript-project";
 const PROJECT_VERSION = 1;
 
+
+const RESERVED_IDENTIFIERS = new Set([
+    "wenn",
+    "dann",
+    "sonst",
+    "ende",
+    "wiederhole",
+    "mal",
+    "solange",
+    "gilt",
+    "ausgabe",
+    "eingabe",
+    "rufe",
+    "mit",
+    "auf",
+    "gib",
+    "zurück",
+    "zurueck",
+    "zufallganzzahl",
+    "ganzzahl",
+    "kommazahl",
+    "text",
+    "wahrheitswert",
+    "wahr",
+    "falsch"
+]);
+
+function isReservedIdentifier(name) {
+    const normalized = String(name || "").trim().toLowerCase();
+
+    if (normalized === "") {
+        return false;
+    }
+
+    if (RESERVED_IDENTIFIERS.has(normalized)) {
+        return true;
+    }
+
+    if (/^i\d+$/.test(normalized)) {
+        return true;
+    }
+
+    return false;
+}
+
+function getReservedIdentifierMessage(name) {
+    return `Der Name „${name}“ ist gesperrt und darf nicht verwendet werden.`;
+}
+
 function hasSupportedProjectExtension(filename) {
     const lower = String(filename || "").toLowerCase();
     return lower.endsWith(".wskript") || lower.endsWith(".json");
@@ -348,6 +397,11 @@ addSubprogramButton.addEventListener("click", () => {
         return;
     }
 
+    if (isReservedIdentifier(trimmed)) {
+        appendConsoleLine(getReservedIdentifierMessage(trimmed), "error");
+        return;
+    }
+
     const alreadyExists = projectState.subprograms.some(
         subprogram => subprogram.name.toLowerCase() === trimmed.toLowerCase()
     );
@@ -421,6 +475,11 @@ renameProgramButton.addEventListener("click", () => {
 
     if (newName.toLowerCase() === "hauptprogramm") {
         appendConsoleLine("Der Name „Hauptprogramm“ ist reserviert.", "error");
+        return;
+    }
+
+    if (isReservedIdentifier(newName)) {
+        appendConsoleLine(getReservedIdentifierMessage(newName), "error");
         return;
     }
 
@@ -1466,6 +1525,67 @@ Ganzzahl b = 6
 Gib a + b zurück`
     );
 
+    const reservedClassic = buildHelpCodeBlock(
+        "Gesperrte Begriffe im klassischen Modus",
+        `Wenn
+Dann
+Sonst
+Ende
+Wiederhole
+Mal
+Solange
+gilt
+Ausgabe
+Eingabe
+Rufe
+mit
+auf
+Gib
+zurück
+ZufallGanzzahl
+Ganzzahl
+Kommazahl
+Text
+Wahrheitswert
+wahr
+falsch
+i1, i2, i3, ...`
+    );
+
+    const reservedTurtle = buildHelpCodeBlock(
+        "Gesperrte Begriffe im Turtle-Modus",
+        `Wenn
+Dann
+Sonst
+Ende
+Wiederhole
+Mal
+Solange
+gilt
+Ausgabe
+Eingabe
+Rufe
+mit
+auf
+Gib
+zurück
+ZufallGanzzahl
+Ganzzahl
+Kommazahl
+Text
+Wahrheitswert
+wahr
+falsch
+vorwaerts
+dreheLinks
+dreheRechts
+stiftHoch
+stiftRunter
+geheZu
+loescheZeichenflaeche
+i1, i2, i3, ...`
+    );
+
     popup.document.write(`
 <!DOCTYPE html>
 <html lang="de">
@@ -1738,17 +1858,25 @@ body {
 </div>
 
             <div class="helpPanel" data-panel="tips">
-                <h2>Tipps und Hinweise</h2>
-                <ul>
-                    <li>Texte müssen in Anführungszeichen stehen.</li>
-                    <li>Dezimalzahlen werden mit Komma geschrieben.</li>
-                    <li>Mehrere Ausgaben hintereinander sind oft klarer als sehr lange verkettete Texte.</li>
-                    <li>Unterprogramme ohne Rückgabewert werden mit <code>Rufe ... auf</code> verwendet.</li>
-                    <li>Unterprogramme mit Rückgabewert stehen rechts von einem <code>=</code> oder in einem Ausdruck.</li>
-                    <li><code>ZufallGanzzahl(min, max)</code> liefert eine Ganzzahl inklusive beider Grenzen.</li>
-                    <li>PNG-Export des Struktogramms: <code>Strg/Cmd + Shift + E</code></li>
-                </ul>
-            </div>
+    <h2>Tipps und Hinweise</h2>
+    <ul>
+        <li>Texte müssen in Anführungszeichen stehen.</li>
+        <li>Dezimalzahlen werden mit Komma geschrieben.</li>
+        <li>Mehrere Ausgaben hintereinander sind oft klarer als sehr lange verkettete Texte.</li>
+        <li>Unterprogramme ohne Rückgabewert werden mit <code>Rufe ... auf</code> verwendet.</li>
+        <li>Unterprogramme mit Rückgabewert stehen rechts von einem <code>=</code> oder in einem Ausdruck.</li>
+        <li><code>ZufallGanzzahl(min, max)</code> liefert eine Ganzzahl inklusive beider Grenzen.</li>
+        <li>Einige Begriffe und Namen sind gesperrt und dürfen nicht als Variablen- oder Unterprogrammnamen verwendet werden.</li>
+        <li>Auch interne Hilfsnamen wie <code>i1</code>, <code>i2</code>, <code>i3</code> usw. sind gesperrt.</li>
+        <li>PNG-Export des Struktogramms: <code>Strg/Cmd + Shift + E</code></li>
+    </ul>
+
+    ${
+        projectState.mode === "turtle"
+            ? reservedTurtle
+            : reservedClassic
+    }
+</div>
         </div>
 
         <div class="helpFooter helpCard">
@@ -1882,6 +2010,13 @@ function parseParameterDefinitions(text) {
             return {
                 ok: false,
                 message: `Ungültige Parameterdefinition: ${part}`
+            };
+        }
+
+        if (isReservedIdentifier(match[2])) {
+            return {
+                ok: false,
+                message: `Gesperrter Parametername: ${match[2]}`
             };
         }
 
@@ -2264,6 +2399,13 @@ function normalizeImportedProject(rawData) {
             return {
                 ok: false,
                 message: `Unterprogramm ${i + 1} hat keinen gültigen Namen.`
+            };
+        }
+
+        if (isReservedIdentifier(entry.name.trim())) {
+            return {
+                ok: false,
+                message: `Unterprogramm ${i + 1} verwendet einen gesperrten Namen: ${entry.name.trim()}`
             };
         }
 

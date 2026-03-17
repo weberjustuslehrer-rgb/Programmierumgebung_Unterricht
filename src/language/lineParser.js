@@ -1,3 +1,74 @@
+const RESERVED_IDENTIFIERS = new Set([
+    "wenn",
+    "dann",
+    "sonst",
+    "ende",
+    "wiederhole",
+    "mal",
+    "solange",
+    "gilt",
+    "ausgabe",
+    "eingabe",
+    "rufe",
+    "mit",
+    "auf",
+    "gib",
+    "zurück",
+    "zurueck",
+    "zufallganzzahl",
+    "ganzzahl",
+    "kommazahl",
+    "text",
+    "wahrheitswert",
+    "wahr",
+    "falsch",
+    "vorwaerts",
+    "drehelinks",
+    "dreherechts",
+    "stifthoch",
+    "stiftrunter",
+    "gehezu",
+    "loeschezeichenflaeche"
+]);
+
+function isReservedIdentifier(name) {
+    const normalized = String(name || "").trim().toLowerCase();
+
+    if (normalized === "") {
+        return false;
+    }
+
+    if (RESERVED_IDENTIFIERS.has(normalized)) {
+        return true;
+    }
+
+    if (/^i\d+$/.test(normalized)) {
+        return true;
+    }
+
+    return false;
+}
+
+function isValidIdentifier(name) {
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(String(name || "").trim());
+}
+
+function buildIdentifierError(line, name) {
+    return {
+        type: "error",
+        message: `Der Name „${name}“ ist gesperrt und darf nicht verwendet werden.`,
+        content: line
+    };
+}
+
+function buildInvalidIdentifierError(line, name) {
+    return {
+        type: "error",
+        message: `„${name}“ ist kein gültiger Bezeichner.`,
+        content: line
+    };
+}
+
 export function parseLine(line) {
     const declarationTypes = ["Ganzzahl", "Kommazahl", "Text", "Wahrheitswert"];
 
@@ -6,6 +77,14 @@ export function parseLine(line) {
         const prefix = `Eingabe ${currentType} `;
         if (line.startsWith(prefix)) {
             const variable = line.substring(prefix.length).trim();
+
+            if (!isValidIdentifier(variable)) {
+                return buildInvalidIdentifierError(line, variable);
+            }
+
+            if (isReservedIdentifier(variable)) {
+                return buildIdentifierError(line, variable);
+            }
 
             return {
                 type: "input",
@@ -61,6 +140,14 @@ export function parseLine(line) {
 
             const variable = rest.substring(0, splitIndex).trim();
             const value = rest.substring(splitIndex + 1).trim();
+
+            if (!isValidIdentifier(variable)) {
+                return buildInvalidIdentifierError(line, variable);
+            }
+
+            if (isReservedIdentifier(variable)) {
+                return buildIdentifierError(line, variable);
+            }
 
             return {
                 type: "declaration",
@@ -247,6 +334,14 @@ export function parseLine(line) {
         if (splitIndex !== -1) {
             const variable = line.substring(0, splitIndex).trim();
             const value = line.substring(splitIndex + 1).trim();
+
+            if (!isValidIdentifier(variable)) {
+                return buildInvalidIdentifierError(line, variable);
+            }
+
+            if (isReservedIdentifier(variable)) {
+                return buildIdentifierError(line, variable);
+            }
 
             return {
                 type: "assignment",
