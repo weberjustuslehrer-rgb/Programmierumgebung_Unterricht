@@ -45,6 +45,7 @@ const languageMenuDropdown = document.getElementById("languageMenuDropdown");
 const newProjectButton = document.getElementById("newProject");
 const saveProjectButton = document.getElementById("saveProject");
 const loadProjectButton = document.getElementById("loadProject");
+const exportPdfDocumentationButton = document.getElementById("exportPdfDocumentation");
 const openHelpButton = document.getElementById("openHelp");
 const openPythonViewButton = document.getElementById("openPythonView");
 const openPascalViewButton = document.getElementById("openPascalView");
@@ -646,6 +647,15 @@ loadProjectButton.addEventListener("click", () => {
     loadProjectInput.value = "";
     loadProjectInput.click();
 });
+
+if (exportPdfDocumentationButton) {
+    exportPdfDocumentationButton.addEventListener("click", async () => {
+        if (isRunActive) return;
+
+        closeAllMenus();
+        await openPdfDocumentationWindow();
+    });
+}
 
 openHelpButton.addEventListener("click", () => {
     closeAllMenus();
@@ -1397,7 +1407,10 @@ function buildHelpCodeBlock(title, code) {
     `;
 }
 
-
+function buildHighlightedCodeHtml(code) {
+    const highlighted = highlightCodeBlock(code || "");
+    return highlighted.replace(/\n/g, "<br>");
+}
 
 function openHelpWindow() {
     const popup = window.open("", "_blank", "width=980,height=760");
@@ -2218,6 +2231,84 @@ function buildCurrentAst() {
     return { nodes, ast };
 }
 
+function buildAstForProgramId(programId) {
+    let source = "";
+
+    if (programId === "main") {
+        source = projectState.mainSource || "";
+    } else {
+        const subprogram = projectState.subprograms.find(item => item.id === programId);
+        source = subprogram ? (subprogram.source || "") : "";
+    }
+
+    const lineEntries = splitIntoLines(source);
+
+    const nodes = lineEntries.map(entry => {
+        const parsed = parseLine(entry.text);
+        parsed.lineNumber = entry.lineNumber;
+        parsed.programId = programId;
+        return parsed;
+    });
+
+    const ast = buildAST(nodes);
+    return { nodes, ast, source };
+}
+
+async function createDiagramImageForProgram(programId) {
+    const { ast } = buildAstForProgramId(programId);
+
+    const exportHost = document.createElement("div");
+    exportHost.style.position = "fixed";
+    exportHost.style.left = "-100000px";
+    exportHost.style.top = "0";
+    exportHost.style.zIndex = "-1";
+    exportHost.style.pointerEvents = "none";
+    exportHost.style.background = "#ffffff";
+    exportHost.style.padding = "0";
+    exportHost.style.margin = "0";
+
+    const exportWrapper = document.createElement("div");
+    exportWrapper.style.background = "#ffffff";
+    exportWrapper.style.padding = "24px";
+    exportWrapper.style.display = "inline-block";
+    exportWrapper.style.fontFamily = "sans-serif";
+    exportWrapper.style.color = "#1f2937";
+
+    const diagramCanvas = document.createElement("div");
+    diagramCanvas.id = "diagramCanvas";
+    diagramCanvas.style.display = "inline-block";
+    diagramCanvas.style.background = "#ffffff";
+
+    exportWrapper.appendChild(diagramCanvas);
+    exportHost.appendChild(exportWrapper);
+    document.body.appendChild(exportHost);
+
+    try {
+        renderDiagram(ast);
+
+        await yieldToBrowser();
+        await yieldToBrowser();
+
+        const width = Math.ceil(exportWrapper.scrollWidth);
+        const height = Math.ceil(exportWrapper.scrollHeight);
+
+        return await toPng(exportWrapper, {
+            cacheBust: true,
+            pixelRatio: 2,
+            backgroundColor: "#ffffff",
+            width,
+            height,
+            style: {
+                width: `${width}px`,
+                height: `${height}px`,
+                backgroundColor: "#ffffff"
+            }
+        });
+    } finally {
+        exportHost.remove();
+    }
+}
+
 function openDiagramWindowForCurrentProgram() {
     const { nodes, ast } = buildCurrentAst();
 
@@ -2494,6 +2585,360 @@ function applyImportedProject(project) {
     clearVariableState("Noch keine Variablen vorhanden. Nutze Run oder Debug.");
 
     renderAll();
+}
+
+
+async function openPdfDocumentationWindow() {
+    if (isRunActive) return;
+
+    saveCurrentEditorContent();
+
+    const suggestedName = getSuggestedProjectName().replace(/-/g, " ");
+    const projectTitleInput = window.prompt(
+        "Titel der Dokumentation:",
+        suggestedName.charAt(0).toUpperCase() + suggestedName.slice(1)
+    );
+
+    if (projectTitleInput === null) {
+        return;
+    }
+
+    const projectTitle = projectTitleInput.trim() || "WebSkript Dokumentation";
+
+    const popup = window.open("", "_blank", "width=1100,height=900");
+
+    if (!popup) {
+        appendConsoleLine("Das Dokumentationsfenster konnte nicht geöffnet werden.", "error");
+        return;
+    }
+
+    const sections = [];
+
+    sections.push({
+        id: "main",
+        title: "Hauptprogramm",
+        source: projectState.mainSource || ""
+    });
+
+    for (const subprogram of projectState.subprograms) {
+        sections.push({
+            id: subprogram.id,
+            title: `Unterprogramm: ${subprogram.name}`,
+            source: subprogram.source || ""
+        });
+    }
+
+    const sectionsWithDiagrams = [];
+
+    for (const section of sections) {
+        try {
+            const diagramDataUrl = await createDiagramImageForProgram(section.id);
+
+            sectionsWithDiagrams.push({
+                ...section,
+                diagramDataUrl
+            });
+        } catch (error) {
+            sectionsWithDiagrams.push({
+                ...section,
+                diagramDataUrl: null,
+                diagramError: error.message
+            });
+        }
+    }
+
+    const renderedSections = sectionsWithDiagrams.map((section, index) => `
+    <section class="doc-page">
+        <div class="doc-page-inner">
+            <h2>${escapeHtml(section.title)}</h2>
+
+            <div class="doc-subtitle">Quelltext</div>
+            <pre class="doc-code"><code>${buildHighlightedCodeHtml(section.source)}</code></pre>
+
+            <div class="doc-subtitle doc-subtitle-diagram">Struktogramm</div>
+            ${
+        section.diagramDataUrl
+            ? `<div class="doc-diagram-wrap">
+                           <img class="doc-diagram" src="${section.diagramDataUrl}">
+                       </div>`
+            : `<div class="doc-diagram-error">Struktogramm konnte nicht erzeugt werden</div>`
+    }
+        </div>
+    </section>
+`).join("");
+
+    popup.document.write(`
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>${escapeHtml(projectTitle)}</title>
+    <style>
+        body {
+            font-family: "Inter", "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 32px;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        .doc-wrapper {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        
+        .doc-page {
+    page-break-before: always;
+    break-before: page;
+}
+
+.doc-page:first-of-type {
+    page-break-before: auto;
+}
+
+.doc-page-inner {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+        .doc-cover,
+.doc-section {
+    background: #ffffff;
+    border: 1px solid #d9e1eb;
+    border-radius: 18px;
+    padding: 24px;
+    box-sizing: border-box;
+    box-shadow: 0 8px 20px rgba(31, 41, 55, 0.06);
+    margin-bottom: 20px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.doc-cover {
+    padding: 20px 24px 18px 24px;
+}
+
+.doc-cover h1 {
+    margin: 0 0 8px 0;
+    font-size: 28px;
+    line-height: 1.15;
+}
+
+.doc-meta {
+    color: #5b687c;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+        .doc-section h2 {
+    margin: 0 0 14px 0;
+    font-size: 24px;
+    line-height: 1.2;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5ebf2;
+}
+
+.doc-subtitle {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #66768c;
+    margin-bottom: 10px;
+}
+
+.doc-subtitle-diagram {
+    margin-top: 18px;
+}
+
+    .doc-code {
+    margin: 0;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid #dbe3ee;
+    background: linear-gradient(180deg, #fafcff 0%, #f5f8fc 100%);
+    font-family: "SFMono-Regular", "Menlo", "Consolas", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+        .doc-code code {
+            font-family: inherit;
+        }
+
+    .doc-diagram-wrap {
+    border: 1px solid #dbe3ee;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+    padding: 18px 14px;
+    text-align: center;
+    overflow: hidden;
+}
+
+.doc-diagram {
+    width: auto;
+    max-width: 72%;
+    max-height: 440px;
+    height: auto;
+    display: inline-block;
+}
+
+
+        .doc-diagram-error {
+            border: 1px solid #f1c7c7;
+            background: #fff4f4;
+            color: #9f2f2f;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 14px;
+        }
+
+        .doc-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            background: #f5f7fb;
+        }
+
+        .doc-toolbar button {
+            appearance: none;
+            border: 1px solid #cfd8e3;
+            background: #eef3f8;
+            color: #223043;
+            border-radius: 10px;
+            padding: 9px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .token-keyword {
+            color: #7a2cc0;
+            font-weight: 700;
+        }
+
+        .token-type {
+            color: #1d66c2;
+            font-weight: 700;
+        }
+
+        .token-boolean {
+            color: #0e8d7b;
+            font-weight: 700;
+        }
+
+        .token-number {
+            color: #ce6600;
+            font-weight: 600;
+        }
+
+        .token-string {
+            color: #2f8850;
+        }
+
+        .token-comment {
+            color: #8a8f9a;
+            font-style: italic;
+        }
+
+        .token-function {
+            color: #8a4cc8;
+            font-weight: 700;
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+
+            .doc-toolbar {
+                display: none;
+            }
+
+            .doc-cover,
+            .doc-section {
+                box-shadow: none;
+                border: none;
+                border-radius: 0;
+                margin-bottom: 18mm;
+                padding: 0;
+            }
+
+            .doc-section {
+                page-break-before: always;
+            }
+
+            .doc-section-first {
+                page-break-before: auto;
+            }
+
+            .doc-diagram-wrap {
+    border: none;
+    padding: 0;
+    background: #ffffff;
+}
+
+.doc-header {
+    max-width: 900px;
+    margin: 0 auto 20px auto;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e5ebf2;
+}
+
+.doc-header h1 {
+    margin: 0;
+    font-size: 26px;
+}
+
+.doc-meta {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.doc-page-inner {
+    break-inside: avoid;
+}
+
+.doc-diagram {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    max-height: 150mm;
+    object-fit: contain;
+}
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-wrapper">
+        <div class="doc-toolbar">
+            <button onclick="window.print()">Drucken / Als PDF sichern</button>
+            <button onclick="window.close()">Fenster schließen</button>
+        </div>
+
+        <div class="doc-header">
+    <h1>${escapeHtml(projectTitle)}</h1>
+    <div class="doc-meta">
+        <div><strong>Modus:</strong> ${projectState.mode === "turtle" ? "Turtle-Modus" : "Klassischer Modus"}</div>
+        <div><strong>Programme:</strong> ${1 + projectState.subprograms.length}</div>
+    </div>
+</section>
+${renderedSections}
+    </div>
+</body>
+</html>
+    `);
+
+    popup.document.close();
 }
 
 function appendConsoleLine(text, kind) {
