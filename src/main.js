@@ -1552,6 +1552,8 @@ falsch
 i1, i2, i3, ...`
     );
 
+
+
     const reservedTurtle = buildHelpCodeBlock(
         "Gesperrte Begriffe im Turtle-Modus",
         `Wenn
@@ -1586,6 +1588,38 @@ loescheZeichenflaeche
 i1, i2, i3, ...`
     );
 
+    const isTurtleMode = projectState.mode === "turtle";
+
+    const helpBg = isTurtleMode
+        ? "linear-gradient(180deg, #f4eff9 0%, #eee7f6 48%, #ebe3f4 100%)"
+        : "linear-gradient(180deg, #f1f5f1 0%, #eaf1ec 48%, #e8efea 100%)";
+
+    const helpCardBg = isTurtleMode ? "#f6f0fb" : "#ffffff";
+    const helpCardBorder = isTurtleMode ? "#d9cfea" : "#d8e0ea";
+
+    const helpTabBg = isTurtleMode ? "#f1ebf8" : "#eef3f8";
+    const helpTabBorder = isTurtleMode ? "#d8cdea" : "#cfd8e3";
+
+    const helpTabActiveBg = isTurtleMode ? "#e7ddf5" : "#dceaff";
+    const helpTabActiveBorder = isTurtleMode ? "#cbb8e8" : "#bcd5ff";
+    const helpTabActiveColor = isTurtleMode ? "#4a356f" : "#0f3f83";
+
+    const helpSnippetButtonBg = isTurtleMode ? "#f1ebf8" : "#eef3f8";
+    const helpSnippetButtonBorder = isTurtleMode ? "#d8cdea" : "#cfd8e3";
+
+    const helpCodeBorder = isTurtleMode ? "#ddd2ee" : "#dbe3ee";
+
+    const closeButtonBg = isTurtleMode ? "#f0eaf8" : "#eef2f6";
+    const closeButtonBorder = isTurtleMode ? "#d8cdea" : "#d3dbe6";
+
+    const helpBodyBgCss = `background: ${helpBg};`;
+    const helpCardCss = `background: ${helpCardBg}; border: 1px solid ${helpCardBorder};`;
+    const helpTabCss = `border: 1px solid ${helpTabBorder}; background: ${helpTabBg};`;
+    const helpTabActiveCss = `background: ${helpTabActiveBg}; border-color: ${helpTabActiveBorder}; color: ${helpTabActiveColor};`;
+    const helpSnippetButtonCss = `border: 1px solid ${helpSnippetButtonBorder}; background: ${helpSnippetButtonBg};`;
+    const helpCodeBlockCss = `border: 1px solid ${helpCodeBorder};`;
+    const helpCloseButtonCss = `border: 1px solid ${closeButtonBorder}; background: ${closeButtonBg};`;
+
     popup.document.write(`
 <!DOCTYPE html>
 <html lang="de">
@@ -1600,7 +1634,7 @@ i1, i2, i3, ...`
 
 body {
     font-family: "Inter", "Segoe UI", sans-serif;
-    background: linear-gradient(180deg, #f1f5f1 0%, #eaf1ec 48%, #e8efea 100%);
+    ${helpBodyBgCss}
     color: #1f2937;
     overflow: hidden;
 }
@@ -1615,13 +1649,12 @@ body {
 }
 
         .helpCard {
-            background: white;
-            border: 1px solid #d8e0ea;
-            border-radius: 14px;
-            box-shadow: 0 6px 18px rgba(31, 41, 55, 0.06);
-            padding: 14px;
-            box-sizing: border-box;
-        }
+    ${helpCardCss}
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(31, 41, 55, 0.06);
+    padding: 14px;
+    box-sizing: border-box;
+}
 
         .helpHeader {
             flex-shrink: 0;
@@ -1643,23 +1676,20 @@ body {
             flex-wrap: wrap;
         }
 
-        .helpTabButton {
-            appearance: none;
-            border: 1px solid #cfd8e3;
-            background: #eef3f8;
-            color: #223043;
-            border-radius: 10px;
-            padding: 8px 14px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
+       .helpTabButton {
+    appearance: none;
+    ${helpTabCss}
+    color: #223043;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
 
         .helpTabButton.active {
-            background: #dceaff;
-            border-color: #bcd5ff;
-            color: #0f3f83;
-        }
+    ${helpTabActiveCss}
+}
 
        .helpContent {
     flex: 1 1 auto;
@@ -1721,46 +1751,44 @@ body {
         }
 
         .copySnippetButton {
-            appearance: none;
-            border: 1px solid #cfd8e3;
-            background: linear-gradient(180deg, #f7fbf8 0%, #edf4ef 100%);
-            color: #223043;
-            border-radius: 10px;
-            padding: 8px 12px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-        }
+    appearance: none;
+    ${helpSnippetButtonCss}
+    color: #223043;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
 
         .copySnippetButton:hover {
             filter: brightness(1.03);
         }
 
         .helpCodeBlock {
-            background: #ffffff;
-            border: 1px solid #dbe3ee;
-            border-radius: 12px;
-            padding: 12px;
-            overflow: auto;
-            white-space: pre;
-            line-height: 1.45;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
-            margin: 0;
-        }
+    background: #ffffff;
+    ${helpCodeBlockCss}
+    border-radius: 12px;
+    padding: 12px;
+    overflow: auto;
+    white-space: pre;
+    line-height: 1.45;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    margin: 0;
+}
 
         
 
         .closeButton {
-            appearance: none;
-            border: 1px solid #d3dbe6;
-            background: #eef2f6;
-            color: #223043;
-            border-radius: 10px;
-            padding: 9px 14px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
+    appearance: none;
+    ${helpCloseButtonCss}
+    color: #223043;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
 
         .token-keyword {
             color: #7a2cc0;
