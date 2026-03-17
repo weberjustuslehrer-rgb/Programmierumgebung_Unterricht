@@ -7,7 +7,7 @@
     <!-- Standard-Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
     <!-- Fallback für ältere Browser -->
-    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
     <!-- Apple Touch Icon -->
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
@@ -51,7 +51,12 @@
             </label>
             <span id="modeStatusLabel" class="modeStatusLabel">Turtle</span>
         </div>
-        <input id="loadProjectInput" type="file" accept=".wskript,application/json" hidden>
+        <input
+                id="loadProjectInput"
+                type="file"
+                accept=".wskript,.json,application/json"
+                hidden
+        >
     </nav>
 
     <div class="workspace">

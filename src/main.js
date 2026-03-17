@@ -69,6 +69,11 @@ const PROJECT_EXTENSION = ".wskript";
 const PROJECT_FORMAT = "webskript-project";
 const PROJECT_VERSION = 1;
 
+function hasSupportedProjectExtension(filename) {
+    const lower = String(filename || "").toLowerCase();
+    return lower.endsWith(".wskript") || lower.endsWith(".json");
+}
+
 const projectState = {
     currentProgramId: "main",
     mode: "classic",
@@ -650,8 +655,8 @@ loadProjectInput.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(PROJECT_EXTENSION)) {
-        appendConsoleLine(`Ungültiger Dateityp. Bitte eine ${PROJECT_EXTENSION}-Datei auswählen.`, "error");
+    if (!hasSupportedProjectExtension(file.name)) {
+        appendConsoleLine("Ungültiger Dateityp. Bitte eine .wskript- oder .json-Datei auswählen.", "error");
         return;
     }
 
