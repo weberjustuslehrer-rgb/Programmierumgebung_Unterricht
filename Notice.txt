@@ -1,0 +1,8 @@
+Projekt: WebSkript
+Autor: Justus A. Weber
+Jahr: 2026
+
+Dieses Projekt wurde von Justus A. Weber entwickelt.
+
+Die originale Version und Weiterentwicklungen basieren auf diesem Projekt.
+Urheberhinweise dürfen nicht entfernt werden.

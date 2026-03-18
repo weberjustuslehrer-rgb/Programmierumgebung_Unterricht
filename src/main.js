@@ -1,3 +1,8 @@
+/*
+ WebSkript
+ © 2026 Justus A. Weber
+*/
+
 import { toPng } from "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm";
 import { splitIntoLines } from "./language/tokenizer.js";
 import { parseLine } from "./language/lineParser.js";
