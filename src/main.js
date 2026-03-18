@@ -997,23 +997,6 @@ function renderTurtleStagePlaceholder() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = "#aebfb4";
-    ctx.lineWidth = 1.25;
-
-    ctx.beginPath();
-    ctx.moveTo(width / 2, 0);
-    ctx.lineTo(width / 2, height);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(0, height / 2);
-    ctx.lineTo(width, height / 2);
-    ctx.stroke();
-
-    ctx.fillStyle = "#314338";
-    ctx.font = "600 16px system-ui, sans-serif";
-    ctx.fillText("Turtle-Zeichenfläche", 24, 30);
-
     drawTurtleLines(ctx);
     drawTurtleShape(ctx);
 }
@@ -1030,11 +1013,10 @@ function resizeTurtleCanvas() {
 
     const rect = parent.getBoundingClientRect();
 
-    const width = Math.floor(rect.width);
-    const height = Math.floor(width * (520 / 900));
+    const size = Math.floor(Math.min(rect.width, 820));
 
-    turtleCanvas.width = width;
-    turtleCanvas.height = height;
+    turtleCanvas.width = size;
+    turtleCanvas.height = size;
 
     renderTurtleStagePlaceholder();
 }
