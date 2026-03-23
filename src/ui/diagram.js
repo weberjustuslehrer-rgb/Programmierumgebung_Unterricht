@@ -59,6 +59,9 @@ function renderStatementNode(node) {
     else if (node.type === "turtle_forward") {
         box.textContent = `Gehe ${node.expression} Schritte vorwärts`;
     }
+    else if (node.type === "turtle_backward") {
+        box.textContent = `Gehe ${node.expression} Schritte rückwärts`;
+    }
     else if (node.type === "turtle_left") {
         box.textContent = `Drehe um ${node.expression}° nach links`;
     }

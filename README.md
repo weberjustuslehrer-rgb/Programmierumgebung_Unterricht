@@ -14,7 +14,4 @@ Das Programm dient dem Einsatz im Informatikunterricht und unterstützt:
 ## Nutzung
 Die Nutzung im Unterricht ist ausdrücklich erlaubt.
 
-Bitte beachte die Hinweise in der Datei `LICENSE.txt`.
-
-## Version
-Siehe CHANGELOG.md
+Bitte beachten Sie die Hinweise in der Datei `LICENSE.txt`.

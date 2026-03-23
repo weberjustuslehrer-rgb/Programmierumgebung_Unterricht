@@ -23,6 +23,7 @@ const RESERVED_IDENTIFIERS = new Set([
     "wahr",
     "falsch",
     "vorwaerts",
+    "rueckwaerts",
     "drehelinks",
     "dreherechts",
     "stifthoch",
@@ -261,6 +262,14 @@ export function parseLine(line) {
         return {
             type: "turtle_forward",
             expression: line.substring("vorwaerts(".length, line.length - 1).trim()
+        };
+    }
+
+    // Turtle: rueckwaerts(...)
+    if (line.startsWith("rueckwaerts(") && line.endsWith(")")) {
+        return {
+            type: "turtle_backward",
+            expression: line.substring("rueckwaerts(".length, line.length - 1).trim()
         };
     }
 

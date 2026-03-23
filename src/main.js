@@ -175,6 +175,7 @@ runButton.addEventListener("click", async () => {
         turtleApi: {
             reset: clearTurtleStage,
             forward: moveTurtleForward,
+            backward: (distance) => moveTurtleForward(-distance),
             turnLeft: turnTurtleLeft,
             turnRight: turnTurtleRight,
             penUp: () => setTurtlePenDown(false),
@@ -276,6 +277,7 @@ debugButton.addEventListener("click", () => {
         turtleApi: {
             reset: clearTurtleStage,
             forward: animateTurtleForward,
+            backward: (distance) => animateTurtleForward(-distance),
             turnLeft: (angle) => animateTurtleTurn(angle),
             turnRight: (angle) => animateTurtleTurn(-angle),
             penUp: () => setTurtlePenDown(false),
@@ -826,6 +828,9 @@ window.testTurtle = {
     },
     vorwaerts(strecke) {
         moveTurtleForward(strecke);
+    },
+    rueckwaerts(strecke) {
+        moveTurtleForward(-strecke);
     },
     links(winkel) {
         turnTurtleLeft(winkel);
@@ -1420,8 +1425,9 @@ Ausgabe fertig`
     );
 
     const turtleForward = buildHelpCodeBlock(
-        "Vorwärts bewegen",
-        `vorwaerts(100)`
+        "Vorwärts und rückwärts bewegen",
+        `vorwaerts(100)
+rueckwaerts(50)`
     );
 
     const turtleTurn = buildHelpCodeBlock(
@@ -1579,6 +1585,7 @@ Wahrheitswert
 wahr
 falsch
 vorwaerts
+rueckwaerts
 dreheLinks
 dreheRechts
 stiftHoch

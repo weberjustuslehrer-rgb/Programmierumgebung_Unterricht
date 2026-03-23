@@ -333,6 +333,11 @@ function translateStatementToPython(line) {
         return `t.forward(${translateExpressionToPython(expression)})`;
     }
 
+    if (line.startsWith("rueckwaerts(") && line.endsWith(")")) {
+        const expression = line.substring("rueckwaerts(".length, line.length - 1).trim();
+        return `t.backward(${translateExpressionToPython(expression)})`;
+    }
+
     if (line.startsWith("dreheLinks(") && line.endsWith(")")) {
         const expression = line.substring("dreheLinks(".length, line.length - 1).trim();
         return `t.left(${translateExpressionToPython(expression)})`;

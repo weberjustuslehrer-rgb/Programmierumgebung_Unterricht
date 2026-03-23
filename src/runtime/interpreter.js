@@ -662,6 +662,13 @@ export class Interpreter {
             };
         }
 
+        if (line.startsWith("rueckwaerts(") && line.endsWith(")")) {
+            return {
+                type: "turtle_backward",
+                expression: line.substring("rueckwaerts(".length, line.length - 1).trim()
+            };
+        }
+
         if (line.startsWith("dreheLinks(") && line.endsWith(")")) {
             return {
                 type: "turtle_left",
@@ -1857,6 +1864,33 @@ export class Interpreter {
                     "debug",
                     node,
                     `Die Turtle bewegt sich um ${this.formatValue(distance)} Schritte vorwärts.`,
+                    programFrame.programId
+                )
+                : null;
+        }
+
+        if (node.type === "turtle_backward") {
+            if (!this.isTurtleMode()) {
+                throw new Error("Der Befehl rueckwaerts(...) ist nur im Turtle-Modus erlaubt.");
+            }
+
+            if (!this.turtleApi?.backward) {
+                throw new Error("Die Turtle-Umgebung ist nicht verfügbar.");
+            }
+
+            const distance = this.evaluateExpression(node.expression);
+
+            if (typeof distance !== "number" || Number.isNaN(distance)) {
+                throw new Error("rueckwaerts(...) erwartet eine Zahl.");
+            }
+
+            this.turtleApi.backward(distance);
+
+            return this.debug
+                ? this.createTraceEntry(
+                    "debug",
+                    node,
+                    `Die Turtle bewegt sich um ${this.formatValue(distance)} Schritte rückwärts.`,
                     programFrame.programId
                 )
                 : null;
