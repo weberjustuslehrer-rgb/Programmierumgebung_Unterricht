@@ -14,6 +14,15 @@ import { renderVariableState, clearVariableState } from "./ui/variables.js";
 import { generatePythonCode } from "./export/pythonExporter.js";
 import { generatePascalCode } from "./export/pascalExporter.js";
 import { generateJavaCode } from "./export/javaExporter.js";
+
+import {
+    initTaskEngine,
+    setTaskModeEnabled,
+    isTaskModeEnabled,
+    evaluateCurrentTask
+} from "./tasks/taskEngine.js";
+
+
 import {
     initEditor,
     getEditorValue,
@@ -62,6 +71,9 @@ const turtleCanvas = document.getElementById("turtleCanvas");
 
 const modeToggleInput = document.getElementById("modeToggleInput");
 const modeStatusLabel = document.getElementById("modeStatusLabel");
+
+const taskModeToggleInput = document.getElementById("taskModeToggleInput");
+const taskModeStatusLabel = document.getElementById("taskModeStatusLabel");
 
 const clearConsoleButton = document.getElementById("clearConsole");
 
@@ -144,6 +156,7 @@ const turtleState = {
     lines: []
 };
 
+let currentExecutionTrace = [];
 
 
 let debugInterpreter = null;
@@ -169,20 +182,31 @@ runButton.addEventListener("click", async () => {
     clearActiveLine();
     consoleDiv.innerHTML = "";
 
+    debugInterpreter = null;
+    clearActiveLine();
+
+    if (projectState.mode === "turtle") {
+        clearTurtleStage();
+    }
+
     await yieldToBrowser();
 
+    resetExecutionTrace();
+
+    const baseRunTurtleApi = {
+        reset: clearTurtleStage,
+        forward: moveTurtleForward,
+        backward: (distance) => moveTurtleForward(-distance),
+        turnLeft: turnTurtleLeft,
+        turnRight: turnTurtleRight,
+        penUp: () => setTurtlePenDown(false),
+        penDown: () => setTurtlePenDown(true),
+        moveTo: moveTurtleTo,
+        clear: clearTurtleStage
+    };
+
     const interpreter = new Interpreter({
-        turtleApi: {
-            reset: clearTurtleStage,
-            forward: moveTurtleForward,
-            backward: (distance) => moveTurtleForward(-distance),
-            turnLeft: turnTurtleLeft,
-            turnRight: turnTurtleRight,
-            penUp: () => setTurtlePenDown(false),
-            penDown: () => setTurtlePenDown(true),
-            moveTo: moveTurtleTo,
-            clear: clearTurtleStage
-        }
+        turtleApi: createTracingTurtleApi(baseRunTurtleApi)
     });
 
     interpreter.programs = projectState;
@@ -247,6 +271,10 @@ runButton.addEventListener("click", async () => {
         if (!wasStopped) {
             lastVariableState = interpreter.captureVariableState(projectState.currentProgramId);
             renderVariableState(lastVariableState);
+
+            if (projectState.mode === "turtle" && isTaskModeEnabled()) {
+                evaluateCurrentTask(currentExecutionTrace);
+            }
         }
     } catch (error) {
         appendConsoleLine(error.message, "error");
@@ -271,6 +299,11 @@ debugButton.addEventListener("click", () => {
 
     consoleDiv.innerHTML = "";
     clearActiveLine();
+
+    if (projectState.mode === "turtle") {
+        clearTurtleStage();
+    }
+
 
     debugInterpreter = new Interpreter({
         debug: true,
@@ -814,7 +847,41 @@ modeToggleInput.addEventListener("change", () => {
             : "Klassischer Modus aktiviert. Das Projekt wurde zurückgesetzt.",
         "debug"
     );
+
+    setTaskModeEnabled(false, (code) => {
+        if (projectState.currentProgramId !== "main") {
+            projectState.currentProgramId = "main";
+        }
+
+        setEditorValue(code);
+        projectState.mainSource = code;
+    });
+
+    updateTaskModeUi();
 });
+
+if (taskModeToggleInput) {
+    taskModeToggleInput.addEventListener("change", () => {
+        if (projectState.mode !== "turtle") {
+            taskModeToggleInput.checked = false;
+            return;
+        }
+
+        const shouldEnable = taskModeToggleInput.checked;
+
+        setTaskModeEnabled(shouldEnable, (code) => {
+            if (projectState.currentProgramId !== "main") {
+                projectState.currentProgramId = "main";
+            }
+
+            setEditorValue(code);
+            projectState.mainSource = code;
+        });
+
+        updateTaskModeUi();
+        resizeTurtleCanvas();
+    });
+}
 
 window.addEventListener("resize", () => {
     if (projectState.mode === "turtle") {
@@ -1023,7 +1090,7 @@ function resizeTurtleCanvas() {
 
     const rect = parent.getBoundingClientRect();
 
-    const size = Math.floor(Math.min(rect.width, 820));
+    const size = Math.max(320, Math.floor(Math.min(rect.width || 0, 820)));
 
     turtleCanvas.width = size;
     turtleCanvas.height = size;
@@ -1337,6 +1404,52 @@ function clearTurtleStage() {
     renderTurtleStagePlaceholder();
 }
 
+
+function resetExecutionTrace() {
+    currentExecutionTrace = [];
+}
+
+function createTracingTurtleApi(baseApi) {
+    return {
+        reset: () => {
+            currentExecutionTrace.push({ type: "clear" });
+            baseApi.reset();
+        },
+        forward: (distance) => {
+            currentExecutionTrace.push({ type: "forward", value: distance });
+            baseApi.forward(distance);
+        },
+        backward: (distance) => {
+            currentExecutionTrace.push({ type: "backward", value: distance });
+            baseApi.backward(distance);
+        },
+        turnLeft: (angle) => {
+            currentExecutionTrace.push({ type: "left", value: angle });
+            baseApi.turnLeft(angle);
+        },
+        turnRight: (angle) => {
+            currentExecutionTrace.push({ type: "right", value: angle });
+            baseApi.turnRight(angle);
+        },
+        penUp: () => {
+            currentExecutionTrace.push({ type: "penUp" });
+            baseApi.penUp();
+        },
+        penDown: () => {
+            currentExecutionTrace.push({ type: "penDown" });
+            baseApi.penDown();
+        },
+        moveTo: (x, y) => {
+            currentExecutionTrace.push({ type: "moveTo", x, y });
+            baseApi.moveTo(x, y);
+        },
+        clear: () => {
+            currentExecutionTrace.push({ type: "clear" });
+            baseApi.clear();
+        }
+    };
+}
+
 function updateLanguageMenuForMode() {
     const isTurtleMode = projectState.mode === "turtle";
 
@@ -1372,6 +1485,32 @@ function updateModeUi() {
 
     if (isTurtleMode) {
         resizeTurtleCanvas();
+    }
+
+    updateTaskModeUi();
+}
+
+function updateTaskModeUi() {
+    const isTurtleMode = projectState.mode === "turtle";
+    const taskToggleWrapper = document.getElementById("taskModeToggleWrapper");
+
+    if (taskToggleWrapper) {
+        taskToggleWrapper.classList.toggle("hidden", !isTurtleMode);
+    }
+
+    if (taskModeToggleInput) {
+        taskModeToggleInput.checked = isTurtleMode && isTaskModeEnabled();
+        taskModeToggleInput.disabled = !isTurtleMode;
+    }
+
+    if (taskModeStatusLabel) {
+        if (!isTurtleMode) {
+            taskModeStatusLabel.textContent = "Aufgabenmodus";
+        } else {
+            taskModeStatusLabel.textContent = isTaskModeEnabled()
+                ? "Aufgabenmodus an"
+                : "Aufgabenmodus aus";
+        }
     }
 }
 
@@ -2098,6 +2237,12 @@ function renderAll() {
     updateEditorMeta();
     updateExecutionButtons();
     loadCurrentEditorContent();
+
+    if (projectState.mode === "turtle") {
+        requestAnimationFrame(() => {
+            resizeTurtleCanvas();
+        });
+    }
 }
 
 function switchToProgram(programId, resetConsole = true, preserveEditorState = false) {
@@ -2977,3 +3122,37 @@ if (projectState.mode === "turtle") {
 
 clearVariableState("Noch keine Variablen vorhanden. Nutze Run oder Debug.");
 renderAll();
+
+initTaskEngine({
+    onLoadStarterCode: (code) => {
+        if (projectState.currentProgramId !== "main") {
+            projectState.currentProgramId = "main";
+        }
+
+        setEditorValue(code);
+        projectState.mainSource = code;
+    },
+
+    onGetCurrentCode: () => {
+        return getEditorValue();
+    },
+
+    onProgramsSnapshot: () => {
+        return JSON.parse(JSON.stringify(projectState));
+    },
+
+    onClearTurtleStage: () => {
+        clearTurtleStage();
+    }
+});
+
+setTaskModeEnabled(false, (code) => {
+    if (projectState.currentProgramId !== "main") {
+        projectState.currentProgramId = "main";
+    }
+
+    setEditorValue(code);
+    projectState.mainSource = code;
+});
+
+updateTaskModeUi();

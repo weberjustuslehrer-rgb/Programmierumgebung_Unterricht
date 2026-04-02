@@ -263,6 +263,10 @@ body.mode-turtle .menuButton:hover {
     gap: 16px;
 }
 
+body.mode-turtle .sidePanelArea {
+    min-width: 0;
+}
+
 .consoleAreaInline {
     margin-top: 0;
 }
@@ -1205,6 +1209,8 @@ body.mode-turtle .mainLayout::before {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    width: 100%;
+    min-width: 0;
 }
 
 .turtleStageLabel {
@@ -1219,12 +1225,13 @@ body.mode-turtle .mainLayout::before {
     display: flex;
     align-items: flex-start;
     justify-content: center;
-
+    width: 100%;
+    min-width: 0;
+    min-height: 320px;
     padding: 0 2px 2px 2px;
     border-radius: 18px;
     background: transparent;
     border: none;
-
 }
 
 body.mode-turtle .turtleStageInner {
@@ -1233,17 +1240,18 @@ body.mode-turtle .turtleStageInner {
 }
 
 #turtleCanvas {
-    width: 100%;
-    max-width: 820px;
-    height: auto;
-    aspect-ratio: 1 / 1;
-    display: block;
-    background: #ffffff;
-    border: 1px solid #d7ddd9;
-    border-radius: 14px;
-    box-shadow: inset 0 1px 3px rgba(31, 41, 55, 0.05);
-
-}
+     display: block;
+     width: 100%;
+     max-width: 820px;
+     min-width: 320px;
+     min-height: 320px;
+     height: auto;
+     aspect-ratio: 1 / 1;
+     background: #ffffff;
+     border: 1px solid #d7ddd9;
+     border-radius: 14px;
+     box-shadow: inset 0 1px 3px rgba(31, 41, 55, 0.05);
+ }
 
 /* Turtle-Modus: klassische Ausgaben ausblenden */
 body.mode-turtle .consoleAreaInline,
@@ -1255,3 +1263,108 @@ body.mode-turtle #variablesPanel {
 body:not(.mode-turtle) .turtleStageCard {
     display: none !important;
 }
+
+.taskPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.taskPanelHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.taskPanelBody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+.taskPanel.taskPanel-collapsed .taskPanelBody {
+    display: none;
+}
+
+.taskProgressBar {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: #e7ebf0;
+    overflow: hidden;
+}
+
+.taskProgressFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #7c9cf5 0%, #94b3ff 100%);
+    transition: width 0.25s ease;
+}
+
+.taskProgressText {
+    font-size: 13px;
+    color: var(--text-soft);
+    margin-top: -4px;
+}
+
+.taskDescription {
+    line-height: 1.45;
+    color: var(--text-main);
+    white-space: pre-wrap;
+}
+
+.taskFeedback {
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.taskFeedback.success {
+    background: #e9f8ee;
+    border: 1px solid #b7e4c2;
+    color: #1f6b39;
+}
+
+.taskFeedback.error {
+    background: #fff1f1;
+    border: 1px solid #f0b7b7;
+    color: #a12b2b;
+}
+
+.taskFeedback.hint {
+    background: #fff8e8;
+    border: 1px solid #edd28e;
+    color: #8a6512;
+}
+
+.taskSolutionBox {
+    margin: 0;
+    padding: 12px;
+    border-radius: 12px;
+    background: #f6f7fb;
+    border: 1px solid #dde3ee;
+    white-space: pre-wrap;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 13px;
+}
+
+.taskNavButtons {
+    display: flex;
+    gap: 10px;
+}
+
+.hidden {
+    display: none !important;
+}
+body.mode-turtle .taskPanel {
+    flex: 0 0 auto;
+}
+
+body.mode-turtle .turtleStageCard {
+    flex: 1 1 auto;
+}
+

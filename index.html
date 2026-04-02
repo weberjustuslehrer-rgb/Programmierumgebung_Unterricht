@@ -55,7 +55,14 @@ WebSkript
                 <input id="modeToggleInput" type="checkbox">
                 <span class="modeToggleSlider"></span>
             </label>
+
             <span id="modeStatusLabel" class="modeStatusLabel">Turtle</span>
+        </div>
+        <div id="taskModeToggleWrapper" class="modeToggleWrapper hidden">
+            <label class="modeToggleLabel">
+                <input type="checkbox" id="taskModeToggleInput">
+                <span id="taskModeStatusLabel">Aufgabenmodus</span>
+            </label>
         </div>
         <input
                 id="loadProjectInput"
@@ -119,6 +126,35 @@ WebSkript
                         <button id="exportDiagramPng" class="ui-button ui-button-panel">Struktogramm als PNG</button>
                     </div>
 
+                    <section id="taskPanel" class="sectionCard taskPanel hidden">
+                        <div class="taskPanelHeader">
+                            <div class="panelHeader">
+                                <h2>Aufgabenmodus</h2>
+                            </div>
+                            <button id="toggleTaskPanelButton" class="ui-button ui-button-panel">Aufgabe einklappen</button>
+                        </div>
+
+                        <div id="taskPanelBody" class="taskPanelBody">
+                            <div class="taskProgressBar">
+                                <div id="taskProgressFill" class="taskProgressFill"></div>
+                            </div>
+                            <div id="taskProgressText" class="taskProgressText">Aufgabe 1 von 1</div>
+
+                            <h3 id="taskTitle">Aufgabe</h3>
+                            <div id="taskDescription" class="taskDescription"></div>
+
+                            <div id="taskFeedback" class="taskFeedback hidden"></div>
+
+                            <button id="showSolutionButton" class="ui-button ui-button-panel hidden">Lösung anzeigen</button>
+                            <pre id="taskSolutionBox" class="taskSolutionBox hidden"></pre>
+
+                            <div class="taskNavButtons">
+                                <button id="prevTaskButton" class="ui-button ui-button-neutral">Zurück</button>
+                                <button id="nextTaskButton" class="ui-button ui-button-neutral">Weiter</button>
+                            </div>
+                        </div>
+                    </section>
+
                     <section class="consoleArea sectionCard consoleAreaInline">
                         <div class="consoleHeader">
                             <h3>Konsole</h3>
@@ -127,7 +163,7 @@ WebSkript
                         <div id="consoleOutput"></div>
                     </section>
 
-                    <section id="turtleStageCard" class="sectionCard turtleStageCard hidden">
+                    <section id="turtleStageCard" class="sectionCard turtleStageCard">
                         <div class="panelHeader">
                             <h2>Turtle-Grafik</h2>
                         </div>
