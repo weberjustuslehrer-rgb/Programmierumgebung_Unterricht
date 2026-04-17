@@ -4,11 +4,6 @@ export const tasks = [
         title: "1. Erste Schritte",
         description: `
 Lass die Turtle 100 Schritte vorwärts gehen.
-
-Ziel:
-- erste Anweisung kennenlernen
-- Run ausprobieren
-- Zeichenfläche beobachten
         `.trim(),
         concepts: ["Sequenz"],
         emptyStarterCode: "",
@@ -30,10 +25,6 @@ Ziel:
         description: `
 Zeichne 100 Schritte vorwärts, drehe dich dann um 90 Grad nach links
 und gehe noch einmal 100 Schritte.
-
-Ziel:
-- Reihenfolge von Befehlen verstehen
-- Sequenz erkennen
         `.trim(),
         concepts: ["Sequenz"],
         emptyStarterCode: "",
@@ -57,11 +48,8 @@ vorwaerts(100)`,
         id: "turtle-03",
         title: "3. Quadrat ohne Schleife",
         description: `
-Zeichne ein Quadrat mit Seitenlänge 100 – noch ohne Wiederholung.
+Zeichne ein Quadrat mit Seitenlänge 100 durch die Nacheinanderausführung der Befehle.
 
-Ziel:
-- längere Sequenzen lesen und schreiben
-- Wiederholungen im Code erkennen, auch wenn noch keine Schleife genutzt wird
         `.trim(),
         concepts: ["Sequenz"],
         emptyStarterCode: "",
@@ -100,9 +88,6 @@ Zeichne dasselbe Quadrat wie in Aufgabe 3, aber jetzt mit einer Wiederholung.
 
 Schau dir danach auch das Struktogramm an.
 
-Ziel:
-- Wiederholung statt mehrfacher gleicher Anweisungen
-- Zusammenhang zwischen Code und Struktogramm erkennen
         `.trim(),
         concepts: ["Wiederholung", "Struktogramm"],
         emptyStarterCode: "",
@@ -130,9 +115,6 @@ Ende Wiederhole`,
         description: `
 Zeichne ein Rechteck mit Seitenlängen 150 und 80.
 
-Ziel:
-- Wiederholung sinnvoll einsetzen
-- zwischen gleichen und unterschiedlichen Schritten unterscheiden
         `.trim(),
         concepts: ["Wiederholung"],
         emptyStarterCode: "",
@@ -169,10 +151,6 @@ Ende Wiederhole`,
         title: "6. Dreieck mit Wiederholung",
         description: `
 Zeichne ein gleichseitiges Dreieck mit Seitenlänge 100.
-
-Ziel:
-- Wiederholung anwenden
-- geeigneten Drehwinkel finden
         `.trim(),
         concepts: ["Wiederholung"],
         emptyStarterCode: "",
@@ -202,11 +180,6 @@ Ende Wiederhole`,
         description: `
 Gehe zuerst ohne zu zeichnen zu der Position (-100, 100).
 Zeichne dort dann eine Linie mit 120 Schritten.
-
-Ziel:
-- stiftHoch / stiftRunter
-- geheZu
-- Sequenz mit Zustandswechsel
         `.trim(),
         concepts: ["Sequenz"],
         emptyStarterCode: "",
@@ -238,10 +211,6 @@ Lege ein Unterprogramm mit dem Namen Quadrat an.
 Es soll ein Quadrat mit Seitenlänge 80 zeichnen.
 
 Danach rufe es im Hauptprogramm einmal auf.
-
-Ziel:
-- Unterprogramme anlegen
-- Aufruf aus dem Hauptprogramm
         `.trim(),
         concepts: ["Unterprogramme", "Wiederholung"],
         emptyStarterCode: "",
@@ -267,9 +236,6 @@ Nutze dein Unterprogramm Quadrat aus Aufgabe 8 zweimal:
 - einmal an der Startposition
 - einmal nach einem Sprung zu einer anderen Position
 
-Ziel:
-- Wiederverwendung von Unterprogrammen
-- Struktur statt Kopieren
         `.trim(),
         concepts: ["Unterprogramme", "Sequenz"],
         emptyStarterCode: "",
@@ -305,9 +271,6 @@ Nutze eine Eingabe vom Typ Ganzzahl mit dem Namen seiten.
 Wenn seiten gleich 3 ist, zeichne ein Dreieck.
 Sonst zeichne ein Quadrat.
 
-Ziel:
-- Alternative kennenlernen
-- Struktogramm dazu anschauen
         `.trim(),
         concepts: ["Alternative", "Struktogramm"],
         emptyStarterCode: "",
@@ -348,8 +311,6 @@ Zeichne ein Zickzackmuster:
 - 4 Mal vorwaerts(60)
 - dann abwechselnd links 45 und rechts 90
 
-Ziel:
-- Wiederholung mit mehreren Anweisungen
         `.trim(),
         concepts: ["Wiederholung"],
         emptyStarterCode: "",
@@ -384,9 +345,6 @@ Ende Wiederhole`,
         description: `
 Erstelle ein Unterprogramm Dreieck und rufe es einmal auf.
 
-Ziel:
-- zweites Unterprogramm anlegen
-- Form als Baustein denken
         `.trim(),
         concepts: ["Unterprogramme"],
         emptyStarterCode: "",
@@ -413,8 +371,6 @@ Zeichne ein Haus, indem du:
 - dann an die Dachposition gehst
 - dann ein Dreieck-Unterprogramm nutzt
 
-Ziel:
-- mehrere Unterprogramme kombinieren
         `.trim(),
         concepts: ["Unterprogramme", "Sequenz"],
         emptyStarterCode: "",
@@ -452,8 +408,6 @@ Dazu:
 - ohne Zeichnen weiter nach rechts
 - wieder Quadrat zeichnen
 
-Ziel:
-- Wiederholung plus Positionswechsel
         `.trim(),
         concepts: ["Wiederholung", "Unterprogramme"],
         emptyStarterCode: "",
@@ -490,8 +444,6 @@ Frage eine Ganzzahl form ab.
 Wenn form == 1, zeichne ein Quadrat.
 Sonst zeichne ein Dreieck.
 
-Ziel:
-- Alternative mit bereits bekannten Unterprogrammen
         `.trim(),
         concepts: ["Alternative", "Unterprogramme"],
         emptyStarterCode: "",
@@ -524,8 +476,6 @@ Ende Wenn`,
         description: `
 Nutze eine Solange-Schleife, um 5 kleine Schritte zu zeichnen.
 
-Ziel:
-- zählgesteuerte Wiederholung mit Variable
         `.trim(),
         concepts: ["Wiederholung"],
         emptyStarterCode: "",
@@ -558,8 +508,6 @@ Ende Solange`,
 Lege ein Unterprogramm Stern an.
 Es soll einen 5-zackigen Stern zeichnen.
 
-Ziel:
-- komplexere Form als Unterprogramm kapseln
         `.trim(),
         concepts: ["Unterprogramme", "Wiederholung"],
         emptyStarterCode: "",
@@ -583,8 +531,6 @@ Ende Wiederhole`,
         description: `
 Nutze dein Stern-Unterprogramm mehrmals an verschiedenen Positionen.
 
-Ziel:
-- Wiederverwendung und Struktur
         `.trim(),
         concepts: ["Unterprogramme", "Sequenz"],
         emptyStarterCode: "",
@@ -622,8 +568,6 @@ Zeichne ein kleines Bild aus mindestens:
 
 Schau dir danach das Struktogramm an.
 
-Ziel:
-- Konzepte zusammenführen
         `.trim(),
         concepts: ["Wiederholung", "Alternative", "Unterprogramme", "Struktogramm"],
         emptyStarterCode: "",
@@ -666,8 +610,6 @@ Bedingungen:
 - mindestens 1 Positionswechsel mit stiftHoch / geheZu / stiftRunter
 - danach Struktogramm anschauen
 
-Ziel:
-- alles zusammenführen
         `.trim(),
         concepts: ["Sequenz", "Wiederholung", "Alternative", "Unterprogramme", "Struktogramm"],
         emptyStarterCode: "",
